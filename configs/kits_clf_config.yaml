@@ -1,12 +1,12 @@
 main:    
     random_seed: 'resnet34'
-    saved_dir: '/home/peter850706/template/models/kits_clf_seg/clf/resnet34/'
+    saved_dir: '/home/extra/tungi893610/results/kits_clf/resnet34/'
 
 dataset:
     name: 'KitsClfSegDataset'
     kwargs:
-        data_dir: '/home/peter850706/kits19_slice/data/'
-        data_split_csv: '/home/peter850706/kits19_slice/dataset_split.csv'
+        data_dir: '/tmp/tungi_data/kits_preprocess_data/'
+        data_split_csv: '/home/extra/tungi893610/dataset_split.csv'
         task: 'clf'
         train_transforms:
             - name: 'RandomCrop'
