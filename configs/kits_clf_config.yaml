@@ -39,6 +39,7 @@ losses:
 
 metrics:
     - name: 'Accuracy'
+    - name: 'F1score'
 
 optimizer:
     name: 'Adam'

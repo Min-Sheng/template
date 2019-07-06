@@ -47,3 +47,33 @@ class Accuracy(nn.Module):
         """
         pred = torch.argmax(output, dim=1)
         return (pred == target).float().mean()
+
+
+class F1score(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, output, target):
+        pred = torch.argmax(output, dim=1)
+        TP = ((pred==1) & (target==1)).float().sum()
+        TN = ((pred==0) & (target==0)).float().sum()
+        FN = ((pred==0) & (target==1)).float().sum()
+        FP = ((pred==1) & (target==0)).float().sum()
+        
+        precision = TP/(TP+FP) if (TP+FP)!=0 else TP/0.00001 
+        recall = TP/(TP+FN) if (TP+FN)!=0 else TP/0.00001
+        F1 = 2*precision*recall / (precision+recall) if (precision+recall)!=0 else 2*precision*recall/0.00001
+        return F1
+
+
+
+
+
+
+
+
+
+
+
+
+
