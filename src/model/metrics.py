@@ -60,9 +60,9 @@ class F1score(nn.Module):
         FN = ((pred==0) & (target==1)).float().sum()
         FP = ((pred==1) & (target==0)).float().sum()
         
-        precision = TP/(TP+FP) if (TP+FP)!=0 else TP/0.00001 
-        recall = TP/(TP+FN) if (TP+FN)!=0 else TP/0.00001
-        F1 = 2*precision*recall / (precision+recall) if (precision+recall)!=0 else 2*precision*recall/0.00001
+        precision = TP/((TP+FP) + 1e-10) 
+        recall = TP/((TP+FN) + 1e-10)
+        F1 = 2*precision*recall / ((precision+recall) + 1e-10)
         return F1
 
 

@@ -57,6 +57,6 @@ class FocalLoss(nn.Module):
         log_p = probs.log()
 
         batch_loss = -alpha*(torch.pow((1-probs), self.gamma))*log_p
-        loss = batch_loss.mean()
+        loss = batch_loss.sum()
         return loss
 
