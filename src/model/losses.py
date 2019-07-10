@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from torch.autograd import Variable
 
+from box import Box
 
 class DiceLoss(nn.Module):
     """The Dice loss.
@@ -26,3 +29,34 @@ class DiceLoss(nn.Module):
         union = (output ** 2).sum(reduced_dims) + (target ** 2).sum(reduced_dims)
         score = intersection / (union + 1e-10)
         return 1 - score.mean()
+
+
+
+class FocalLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        config = Box.from_yaml(filename='/home/extra/tungi893610/template/configs/kits_clf_config.yaml')
+        self.alpha = Variable(torch.FloatTensor(config.losses[0].alpha))
+        self.gamma = config.losses[0].gamma
+
+    def forward(self, output, target):
+        N = output.size(0)
+        C = output.size(1)
+        P = F.softmax(output)
+
+        class_mask = output.data.new(N, C).fill_(0)
+        class_mask = Variable(class_mask)
+        ids = target.view(-1, 1)
+        class_mask.scatter_(1, ids.data, 1.)
+        if output.is_cuda and not self.alpha.is_cuda:
+            self.alpha = self.alpha.cuda()
+        alpha = self.alpha[ids.data.view(-1)]
+
+        probs = (P*class_mask).sum(1).view(-1, 1)
+
+        log_p = probs.log()
+
+        batch_loss = -alpha*(torch.pow((1-probs), self.gamma))*log_p
+        loss = batch_loss.mean()
+        return loss
+

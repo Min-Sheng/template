@@ -34,8 +34,13 @@ net:
         pretrained: false
 
 losses:
-    - name: 'CrossEntropyLoss'
+        #    - name: 'CrossEntropyLoss'
+        #      weight: 1.0
+
+    - name: 'FocalLoss'
       weight: 1.0
+      alpha: [1.0, 1.0]
+      gamma: 2
 
 metrics:
     - name: 'Accuracy'
