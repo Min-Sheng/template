@@ -1,12 +1,12 @@
 main:    
     random_seed: 'resnet34'
-    saved_dir: '/home/extra/tungi893610/results/kits_clf/resnet34/'
+    saved_dir: '/tmp2/tungi893610/kits_clf_result/tmp'
 
 dataset:
     name: 'KitsClfSegDataset'
     kwargs:
-        data_dir: '/tmp/tungi_data/kits_preprocess_data/'
-        data_split_csv: '/home/extra/tungi893610/dataset_split.csv'
+        data_dir: '/tmp2/tungi893610/kits_preprocess_data/'
+        data_split_csv: '/tmp2/tungi893610/dataset_split.csv'
         task: 'clf'
         train_transforms:
             - name: 'RandomCrop'
@@ -34,14 +34,19 @@ net:
         pretrained: false
 
 losses:
-    - name: 'CrossEntropyLoss'
-      weight: 9.0
-
-      #- name: 'FocalLoss'
-      #weight: 1.0
-      #alpha: [1.0, 1.0]
-      #gamma: 2
-
+      # - name: 'CrossEntropyLoss'
+      # weight: [2, 0.1]
+      
+    - name: 'WeightedCrossEntropyLoss'
+      kwargs:
+          weight: [0.1, 0.9]
+      weight: [0.1, 0.9]
+      
+      # - name: 'FocalLoss'
+      # kwargs:
+      #         alpha: [1.0, 1.0]
+      #         gamma: 2
+      # weight: 1.0
 metrics:
     - name: 'Accuracy'
     - name: 'F1score'

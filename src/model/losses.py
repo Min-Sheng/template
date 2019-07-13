@@ -31,15 +31,30 @@ class DiceLoss(nn.Module):
         return 1 - score.mean()
 
 
-
-class FocalLoss(nn.Module):
-    def __init__(self):
+class WeightedCrossEntropyLoss(nn.Module):
+    def __init__(self, weight):
         super().__init__()
-        config = Box.from_yaml(filename='/home/extra/tungi893610/template/configs/kits_clf_config.yaml')
-        self.alpha = Variable(torch.FloatTensor(config.losses[0].alpha))
-        self.gamma = config.losses[0].gamma
+        # config = Box.from_yaml(filename='/tmp2/tungi893610/template/configs/kits_clf_config.yaml')
+        self.weight = torch.tensor(weight).cuda()
 
     def forward(self, output, target):
+        loss_func = nn.CrossEntropyLoss(weight = self.weight)
+        loss = loss_func(output, target)
+        return loss
+
+
+
+class FocalLoss(nn.Module):
+    def __init__(self, alpha, gamma):
+        super().__init__()
+        # config = Box.from_yaml(filename='/home/extra/tungi893610/template/configs/kits_clf_config.yaml')
+        self.alpha = Variable(torch.FloatTensor(alpha))
+        self.gamma = gamma
+
+    def forward(self, output, target):
+        # print(output.size(0))
+        # print(output.size(1))
+        # print(output.size(2))
         N = output.size(0)
         C = output.size(1)
         P = F.softmax(output)
