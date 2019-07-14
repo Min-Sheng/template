@@ -37,16 +37,17 @@ losses:
       # - name: 'CrossEntropyLoss'
       # weight: [2, 0.1]
       
-    - name: 'WeightedCrossEntropyLoss'
-      kwargs:
-          weight: [0.1, 0.9]
-      weight: [0.1, 0.9]
+      # - name: 'WeightedCrossEntropyLoss'
+      #  kwargs:
+      #    weight: [0.1, 0.9]
+      #  weight: [0.1, 0.9]
       
-      # - name: 'FocalLoss'
-      # kwargs:
-      #         alpha: [1.0, 1.0]
-      #         gamma: 2
-      # weight: 1.0
+      - name: 'FocalLoss'
+        kwargs:
+              alpha: [1.0, 1.0]
+              gamma: 2
+        weight: 1.0
+
 metrics:
     - name: 'Accuracy'
     - name: 'F1score'

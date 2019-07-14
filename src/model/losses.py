@@ -52,9 +52,9 @@ class FocalLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, output, target):
-        # print(output.size(0))
-        # print(output.size(1))
-        # print(output.size(2))
+        print(output.size(0))
+        print(output.size(1))
+        print(output.size(2))
         N = output.size(0)
         C = output.size(1)
         P = F.softmax(output)
