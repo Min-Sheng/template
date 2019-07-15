@@ -1,17 +1,17 @@
 main:    
     random_seed: 'resnet34'
-    saved_dir: '/tmp2/tungi893610/kits_clf_result/tmp'
+    saved_dir: '/tmp2/tungi893610/kits_clf_result/09_01'
 
 dataset:
-    name: 'KitsClfSegDataset'
+    name: 'KitsClfDataset'
     kwargs:
-        data_dir: '/tmp2/tungi893610/kits_preprocess_data/'
+        data_dir: '/tmp2/tungi893610/kits_crop_data/'
         data_split_csv: '/tmp2/tungi893610/dataset_split.csv'
         task: 'clf'
         train_transforms:
-            - name: 'RandomCrop'
-              kwargs:
-                  size: [256, 256]
+                #  - name: 'RandomCrop'
+                #  kwargs:
+                #   size: [256, 256]
             - name: 'Normalize'
             - name: 'ToTensor'
         valid_transforms:
@@ -37,16 +37,16 @@ losses:
       # - name: 'CrossEntropyLoss'
       # weight: [2, 0.1]
       
-      # - name: 'WeightedCrossEntropyLoss'
-      #  kwargs:
-      #    weight: [0.1, 0.9]
-      #  weight: [0.1, 0.9]
-      
-      - name: 'FocalLoss'
+      - name: 'WeightedCrossEntropyLoss'
         kwargs:
-              alpha: [1.0, 1.0]
-              gamma: 2
+          weight: [0.9, 0.1]
         weight: 1.0
+      
+       # - name: 'FocalLoss'
+       # kwargs:
+       #      alpha: [1.0, 1.0]
+       #      gamma: 2
+       #  weight: 1.0
 
 metrics:
     - name: 'Accuracy'
@@ -76,4 +76,4 @@ trainer:
     name: 'KitsClfTrainer'
     kwargs:
         device: 'cuda:0'
-        num_epochs: 100
+        num_epochs: 64

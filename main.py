@@ -43,6 +43,7 @@ def main(args):
     config.dataset.kwargs.update(data_dir=data_dir, type='valid')
     valid_dataset = _get_instance(src.data.datasets, config.dataset)
 
+
     logging.info('Create the training and validation dataloaders.')
     cls = getattr(src.data.datasets, config.dataset.name)
     train_batch_size, valid_batch_size = config.dataloader.kwargs.pop('train_batch_size'), config.dataloader.kwargs.pop('valid_batch_size')
