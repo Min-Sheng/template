@@ -4,6 +4,7 @@ from tqdm import tqdm
 import random
 import numpy as np
 
+from src.data.crop import generate_crop_data
 
 class BaseTrainer:
     """The base class for all trainers.
@@ -52,6 +53,9 @@ class BaseTrainer:
         while self.epoch <= self.num_epochs:
             # Reset the numpy random seed.
             np.random.seed(self.np_random_seeds[self.epoch - 1])
+            
+            # Re-crop the dataset
+            generate_crop_data()
 
             # Do training and validation.
             print()
@@ -106,6 +110,7 @@ class BaseTrainer:
             batch (dict or sequence): The last batch of the data.
             outputs (torch.Tensor or sequence of torch.Tensor): The corresponding model outputs.
         """
+
         if mode == 'training':
             self.net.train()
         else:
