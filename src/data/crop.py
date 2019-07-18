@@ -52,30 +52,32 @@ def generate_crop_data():
     if not (Path(valid_output_dir)).exists():
         Path(valid_output_dir).mkdir(parents=True)
 
-    train_data_num = len(train_dataset.data_paths)
-    train_trange = tqdm(range(train_data_num))
-    valid_data_num = len(valid_dataset.data_paths)
-    valid_trange = tqdm(range(valid_data_num))
+    train_data_num = train_dataset.__len__()
+    #train_trange = tqdm(range(train_data_num))
+    valid_data_num = valid_dataset.__len__()
+    #valid_trange = tqdm(range(valid_data_num))
     
     print('###generating training data...###')
-    for i in train_trange:
-        item = _get_item(train_dataset, i)
-        image = item['image']
-        seg = item['label_seg']
-        label = item['label']
-        nib.save(nib.Nifti1Image(image, np.eye(4)), str(Path(train_output_dir) / f'imaging_{i}.nii.gz'))
-        nib.save(nib.Nifti1Image(seg, np.eye(4)), str(Path(train_output_dir) / f'segmentation_{i}.nii.gz'))
-        np.save(Path(train_output_dir) / f'classification_{i}.npy', label)
-
+    with tqdm(total=train_data_num) as pbar:
+        for i in range(train_data_num):
+            item = _get_item(train_dataset, i)
+            image = item['image']
+            seg = item['label_seg']
+            label = item['label']
+            nib.save(nib.Nifti1Image(image, np.eye(4)), str(Path(train_output_dir) / f'imaging_{i}.nii.gz'))
+            nib.save(nib.Nifti1Image(seg, np.eye(4)), str(Path(train_output_dir) / f'segmentation_{i}.nii.gz'))
+            np.save(Path(train_output_dir) / f'classification_{i}.npy', label)
+            pbar.update(1)
 
     print('###generating validation data...###')
-    for i in valid_trange:
-        item = _get_item(valid_dataset, i)
-        image = item['image']
-        seg = item['label_seg']
-        label = item['label']
-        nib.save(nib.Nifti1Image(image, np.eye(4)), str(Path(valid_output_dir) / f'imaging_{i}.nii.gz'))
-        nib.save(nib.Nifti1Image(seg, np.eye(4)), str(Path(valid_output_dir) / f'segmentation_{i}.nii.gz'))
-        np.save(Path(valid_output_dir) / f'classification_{i}.npy', label)
-
+    with tqdm(total=valid_data_num) as pbar:
+        for i in range(valid_data_num):
+            item = _get_item(valid_dataset, i)
+            image = item['image']
+            seg = item['label_seg']
+            label = item['label']
+            nib.save(nib.Nifti1Image(image, np.eye(4)), str(Path(valid_output_dir) / f'imaging_{i}.nii.gz'))
+            nib.save(nib.Nifti1Image(seg, np.eye(4)), str(Path(valid_output_dir) / f'segmentation_{i}.nii.gz'))
+            np.save(Path(valid_output_dir) / f'classification_{i}.npy', label)
+            pbar.update(1)
  

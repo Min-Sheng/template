@@ -36,7 +36,7 @@ class KitsCropDataset(BaseDataset):
                     _clf_label_paths = sorted(list((self.data_dir / case_name).glob('classification*.npy')))
                     _seg_label_paths = sorted(list((self.data_dir / case_name).glob('segmentation*.nii.gz')))
                     if self.task == 'clf':
-                        self.data_paths.extend([(image_path, clf_label_path) for image_path, clf_label_path in zip(_image_paths, _clf_label_paths)])
+                        self.data_paths.extend([(image_path, seg_label_path) for image_path, seg_label_path in zip(_image_paths, _seg_label_paths)])
                     elif self.task == 'seg':
                         # Exclude the slice that does not contain the kidney or the tumer (foreground).
                         self.data_paths.extend([(image_path, seg_label_path) for image_path, clf_label_path, seg_label_path in zip(_image_paths, _clf_label_paths, _seg_label_paths) if np.load(clf_label_path) != 0])
@@ -47,19 +47,26 @@ class KitsCropDataset(BaseDataset):
     def __getitem__(self, index):
         image_path, label_path = self.data_paths[index]
         image = nib.load(str(image_path)).get_data()
-        label = np.load(label_path) if self.task == 'clf' else nib.load(str(label_path)).get_data()
-        if self.type == 'train' and self.task == 'clf':
-            image = self.train_transforms(image)
-            label = self.clf_label_transforms(label, dtypes=[torch.long])
-            image = image.permute(2, 0, 1).contiguous()
-        elif self.type == 'valid' and self.task == 'clf':
-            image = self.valid_transforms(image)
-            label = self.clf_label_transforms(label, dtypes=[torch.long])
-            image = image.permute(2, 0, 1).contiguous()
-        elif self.type == 'train' and self.task == 'seg':
+        #label = np.load(label_path) if self.task == 'clf' else nib.load(str(label_path)).get_data()
+        label = nib.load(str(label_path)).get_data()
+        #if self.type == 'train' and self.task == 'clf':
+            #image = self.train_transforms(image)
+            #label = self.clf_label_transforms(label, dtypes=[torch.long])
+            #image = image.permute(2, 0, 1).contiguous()
+        #elif self.type == 'valid' and self.task == 'clf':
+            #image = self.valid_transforms(image)
+            #label = self.clf_label_transforms(label, dtypes=[torch.long])
+            #image = image.permute(2, 0, 1).contiguous()
+        #elif self.type == 'train' and self.task == 'seg':
+            #image, label = self.train_transforms(image, label, normalize_tags=[True, False], dtypes=[torch.float, torch.long])
+            #image, label = image.permute(2, 0, 1).contiguous(), label.permute(2, 0, 1).contiguous()
+        #elif self.type == 'valid' and self.task == 'seg':
+            #image, label = self.valid_transforms(image, label, normalize_tags=[True, False], dtypes=[torch.float, torch.long])
+            #image, label = image.permute(2, 0, 1).contiguous(), label.permute(2, 0, 1).contiguous()
+        if self.type == 'train' and self.task == 'clf':    
             image, label = self.train_transforms(image, label, normalize_tags=[True, False], dtypes=[torch.float, torch.long])
             image, label = image.permute(2, 0, 1).contiguous(), label.permute(2, 0, 1).contiguous()
-        elif self.type == 'valid' and self.task == 'seg':
+        elif self.type == 'valid' and self.task == 'clf':
             image, label = self.valid_transforms(image, label, normalize_tags=[True, False], dtypes=[torch.float, torch.long])
             image, label = image.permute(2, 0, 1).contiguous(), label.permute(2, 0, 1).contiguous()
         return {"image": image, "label": label}

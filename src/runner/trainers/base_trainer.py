@@ -54,8 +54,8 @@ class BaseTrainer:
             # Reset the numpy random seed.
             np.random.seed(self.np_random_seeds[self.epoch - 1])
             
-            # Re-crop the dataset
-            generate_crop_data()
+            # 
+            #generate_crop_data()
 
             # Do training and validation.
             print()
@@ -225,6 +225,7 @@ class BaseTrainer:
             log[loss.__class__.__name__] += _loss.item() * batch_size
         for metric, _metric in zip(self.metrics, metrics):
             log[metric.__class__.__name__] += _metric.item() * batch_size
+            #log[metric.__class__.__name__] = _metric.item() * batch_size
 
     def save(self, path):
         """Save the model checkpoint.
