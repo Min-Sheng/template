@@ -1,6 +1,6 @@
 main:    
     random_seed: 'resnet34'
-    saved_dir: '/tmp2/tungi893610/kits_result/clf/debug'
+    saved_dir: '/tmp2/tungi893610/kits_result/clf/01_09'
 
 dataset:
     name: 'KitsClfSegDataset'
@@ -50,7 +50,7 @@ losses:
       
     - name: 'WeightedCrossEntropyLoss'
       kwargs:
-        weight: [0.2, 0.8]
+        weight: [0.1, 0.9]
       weight: 1.0
       
        # - name: 'FocalLoss'
@@ -62,10 +62,12 @@ losses:
 metrics:
     - name: 'Accuracy'
     - name: 'F1score'
-    - name: 'TPRate'
-    - name: 'TNRate'
-    - name: 'FNRate'
-    - name: 'FPRate'
+      #- name: 'TPRate'
+      #- name: 'TNRate'
+      #- name: 'FNRate'
+      #- name: 'FPRate'
+      #- name: 'TN'
+      #- name: 'TP'
 
 optimizer:
     name: 'Adam'

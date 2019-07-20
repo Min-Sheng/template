@@ -63,20 +63,15 @@ class KitsClfSegDataset(BaseDataset):
             label = np.array(0) if seg_label.sum()==0 else np.array(1)
             label = self.clf_label_transforms(label, dtypes=[torch.long])
         elif self.type == 'valid' and self.task == 'clf':
-            ###
-            #image_path, label_path = self.all_data_paths[index]
-            #image = nib.load(str(image_path)).get_data()
-            #seg_label = nib.load(str(label_path)).get_data()
-            ###
             image, seg_label = self.valid_transforms(image, seg_label, normalize_tags=[True, False], dtypes=[torch.float, torch.long])
             image = image.permute(2, 0, 1).contiguous()
             seg_label = np.asarray(seg_label)
             label = np.array(0) if seg_label.sum()==0 else np.array(1)
             label = self.clf_label_transforms(label, dtypes=[torch.long])
         elif self.type == 'train' and self.task == 'seg':
-            image, label = self.train_transforms(image, label, normalize_tags=[True, False], dtypes=[torch.float, torch.long])
+            image, label = self.train_transforms(image, seg_label, normalize_tags=[True, False], dtypes=[torch.float, torch.long])
             image, label = image.permute(2, 0, 1).contiguous(), label.permute(2, 0, 1).contiguous()
         elif self.type == 'valid' and self.task == 'seg':
-            image, label = self.valid_transforms(image, label, normalize_tags=[True, False], dtypes=[torch.float, torch.long])
+            image, label = self.valid_transforms(image, seg_label, normalize_tags=[True, False], dtypes=[torch.float, torch.long])
             image, label = image.permute(2, 0, 1).contiguous(), label.permute(2, 0, 1).contiguous()
         return {"image": image, "label": label}

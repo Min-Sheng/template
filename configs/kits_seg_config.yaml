@@ -1,12 +1,12 @@
 main:
     random_seed: 'unet2d'
-    saved_dir: '/home/peter850706/template/models/kits_clf_seg/seg/unet2d/'
+    saved_dir: '/tmp2/tungi893610/kits_result/seg/first'
 
 dataset:
     name: 'KitsClfSegDataset'
     kwargs:
-        data_dir: "/home/peter850706/kits19_slice/data/"
-        data_split_csv: "/home/peter850706/kits19_slice/dataset_split.csv"
+        data_dir: "/tmp2/tungi893610/kits_preprocess_data/"
+        data_split_csv: "/tmp2/tungi893610/dataset_split.csv"
         task: 'seg'
         train_transforms:
             - name: 'RandomCrop'
@@ -63,4 +63,4 @@ trainer:
     name: 'KitsSegTrainer'
     kwargs:
         device: 'cuda:0'
-        num_epochs: 100
+        num_epochs: 128

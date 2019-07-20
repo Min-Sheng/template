@@ -34,8 +34,13 @@ class DiceLoss(nn.Module):
 class WeightedCrossEntropyLoss(nn.Module):
     def __init__(self, weight):
         super().__init__()
-        # config = Box.from_yaml(filename='/tmp2/tungi893610/template/configs/kits_clf_config.yaml')
         self.weight = torch.tensor(weight).cuda()
+        #self.accumulate_loss = 0
+        #self.total_num = 0
+
+    #def _reset(self):
+        #self.accumulate_loss = 0
+        #self.total_num = 0
 
     def forward(self, output, target):
         loss_func = nn.CrossEntropyLoss(weight = self.weight)

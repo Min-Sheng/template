@@ -35,6 +35,12 @@ class Accuracy(nn.Module):
     """
     def __init__(self):
         super().__init__()
+        self.total_num = 0
+        self.currect_num = 0
+
+    def _reset(self):
+        self.total_num = 0
+        self.currect_num = 0
 
     def forward(self, output, target):
         """
@@ -46,27 +52,37 @@ class Accuracy(nn.Module):
             metric (torch.Tensor) (0): The accuracy.
         """
         pred = torch.argmax(output, dim=1)
-        return (pred == target).float().mean()
+        self.total_num += output.size(0)
+        self.currect_num += (pred == target).float().sum()
+        #print('### '+str(self.currect_num/self.total_num)+' ###') 
+        #print('### '+str(self.total_num)+' ### '+str(self.currect_num)+' ###')
+        return self.currect_num/self.total_num
 
 
 class F1score(nn.Module):
     def __init__(self):
         super().__init__()
+        self.TP = 0;
+        self.TN = 0;
+        self.FP = 0;
+        self.FN = 0;
+
+    def _reset(self):
+        self.TP = 0;
+        self.TN = 0;
+        self.FP = 0;
+        self.FN = 0;
 
     def forward(self, output, target):
         pred = torch.argmax(output, dim=1)
         pre_mask = torch.zeros(output.size()).scatter_(1, pred.cpu().view(-1, 1), 1.)
         tar_mask = torch.zeros(output.size()).scatter_(1, target.data.cpu().view(-1, 1), 1.)
-        TP = (pre_mask[:, 1]*tar_mask[:, 1]).float().sum()
-        FP = (pre_mask[:, 1]*tar_mask[:, 0]).float().sum()
-        FN = (pre_mask[:, 0]*tar_mask[:, 1]).float().sum()
-        TN = (pre_mask[:, 0]*tar_mask[:, 0]).float().sum()
-        #TP = ((pred==1) & (target==1)).float().sum()
-        #TN = ((pred==0) & (target==0)).float().sum()
-        #FN = ((pred==0) & (target==1)).float().sum()
-        #FP = ((pred==1) & (target==0)).float().sum()
-        precision = TP/((TP+FP) + 1e-10) 
-        recall = TP/((TP+FN) + 1e-10)
+        self.TP += (pre_mask[:, 1]*tar_mask[:, 1]).float().sum()
+        self.FP += (pre_mask[:, 1]*tar_mask[:, 0]).float().sum()
+        self.FN += (pre_mask[:, 0]*tar_mask[:, 1]).float().sum()
+        self.TN += (pre_mask[:, 0]*tar_mask[:, 0]).float().sum()
+        precision = self.TP/((self.TP+self.FP) + 1e-10) 
+        recall = self.TP/((self.TP+self.FN) + 1e-10)
         F1 = 2*precision*recall / ((precision+recall) + 1e-10)
         return F1
 
@@ -119,8 +135,27 @@ class FNRate(nn.Module):
         FN = (pre_mask[:, 0]*tar_mask[:, 1]).float().sum()
         return FN/(TP+FN+1e-10)
 
+class TN(nn.Module):
+    def __init__(self):
+        super().__init__()
 
+    def forward(self, output, target):
+        pred = torch.argmax(output, dim=1) 
+        pre_mask = torch.zeros(output.size()).scatter_(1, pred.cpu().view(-1, 1), 1.)
+        tar_mask = torch.zeros(output.size()).scatter_(1, target.data.cpu().view(-1, 1), 1.)
+        TN = (pre_mask[:, 0]*tar_mask[:, 0]).sum()
+        return TN
 
+class TP(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, output, target):
+        pred = torch.argmax(output, dim=1) 
+        pre_mask = torch.zeros(output.size()).scatter_(1, pred.cpu().view(-1, 1), 1.)
+        tar_mask = torch.zeros(output.size()).scatter_(1, target.data.cpu().view(-1, 1), 1.)
+        TP = (pre_mask[:, 1]*tar_mask[:, 1]).sum()
+        return TP
 
 
 

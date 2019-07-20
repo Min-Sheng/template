@@ -54,8 +54,6 @@ class BaseTrainer:
             # Reset the numpy random seed.
             np.random.seed(self.np_random_seeds[self.epoch - 1])
             
-            # 
-            #generate_crop_data()
 
             # Do training and validation.
             print()
@@ -119,7 +117,10 @@ class BaseTrainer:
         trange = tqdm(dataloader,
                       total=len(dataloader),
                       desc=mode)
-
+        ###
+        for metric in self.metrics:
+            metric._reset()
+        ### 
         log = self._init_log()
         count = 0
         for batch in trange:
@@ -143,9 +144,24 @@ class BaseTrainer:
             self._update_log(log, batch_size, loss, losses, metrics)
             count += batch_size
             trange.set_postfix(**dict((key, f'{value / count: .3f}') for key, value in log.items()))
-
+            
+            #print('###') 
+            #print(count)
+            #print(' ')
+            #for key, val in log.items():
+                #print(val)
+            #log['Loss'] /= count
+            #print(' ')
         for key in log:
+            #print(key)
+            #print(log[key])
             log[key] /= count
+            ###
+            #log['Loss'] /= count
+            #print('###')
+            #print(metrics)
+            #print('###')
+            ###
         return log, batch, outputs
 
     def _allocate_data(self, batch):
@@ -209,6 +225,9 @@ class BaseTrainer:
             log[loss.__class__.__name__] = 0
         for metric in self.metrics:
             log[metric.__class__.__name__] = 0
+            ###
+            #metric._reset()
+            ###
         return log
 
     def _update_log(self, log, batch_size, loss, losses, metrics):
@@ -225,7 +244,10 @@ class BaseTrainer:
             log[loss.__class__.__name__] += _loss.item() * batch_size
         for metric, _metric in zip(self.metrics, metrics):
             log[metric.__class__.__name__] += _metric.item() * batch_size
-            #log[metric.__class__.__name__] = _metric.item() * batch_size
+            #log[metric.__class__.__name__] = _metric.item()
+            ###
+            #print('###'+str(_metric.item())+'###')
+            ###
 
     def save(self, path):
         """Save the model checkpoint.
