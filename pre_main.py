@@ -113,8 +113,12 @@ def main(args, case_num):
             raise ValueError("The cuda is not available. Please set the device in the predictor section to 'cpu'.")
         device = torch.device(config.predictor.kwargs.device)
 
+        print('#######'+str(case_num)+'######')
         logging.info('Create the testing dataset.')
-        data_dir = Path(str(config.dataset.kwargs.data_dir)+str(case_num))
+        data_dir = Path(config.dataset.kwargs.data_dir)
+        dir_case = 'case_00'
+        case_num = str(case_num)
+        data_dir = (data_dir / Path(dir_case+case_num))
         config.dataset.kwargs.update(data_dir=data_dir, type='test')
         test_dataset = _get_instance(src.data.datasets, config.dataset)
 
@@ -124,34 +128,36 @@ def main(args, case_num):
         logging.info('Create the network architecture.')
         net = _get_instance(src.model.nets, config.net)
 
-        logging.info('Create the loss functions and the corresponding weights.')
-        loss_fns, loss_weights = [], []
-        defaulted_loss_fns = [loss_fn for loss_fn in dir(torch.nn) if 'Loss' in loss_fn]
-        for config_loss in config.losses:
-            if config_loss.name in defaulted_loss_fns:
-                loss_fn = _get_instance(torch.nn, config_loss)
-            else:
-                loss_fn = _get_instance(src.model.losses, config_loss)
-            loss_fns.append(loss_fn)
-            loss_weights.append(config_loss.weight)
+        #logging.info('Create the loss functions and the corresponding weights.')
+        #loss_fns, loss_weights = [], []
+        #defaulted_loss_fns = [loss_fn for loss_fn in dir(torch.nn) if 'Loss' in loss_fn]
+        #for config_loss in config.losses:
+            #if config_loss.name in defaulted_loss_fns:
+                #loss_fn = _get_instance(torch.nn, config_loss)
+            #else:
+                #loss_fn = _get_instance(src.model.losses, config_loss)
+            #loss_fns.append(loss_fn)
+            #loss_weights.append(config_loss.weight)
 
-        logging.info('Create the metric functions.')
-        metric_fns = [_get_instance(src.model.metrics, config_metric) for config_metric in config.metrics]
+        #logging.info('Create the metric functions.')
+        #metric_fns = [_get_instance(src.model.metrics, config_metric) for config_metric in config.metrics]
 
-        output_dir = Path(str(config.predictor.kwargs.output_dir)+str(case_num))
+        logging.info('Find the output dir')
+        output_dir = Path(config.predictor.kwargs.output_dir)
+        output_dir = (output_dir / Path(dir_case+case_num))
         if not output_dir.is_dir():
             output_dir.mkdir(parents=True)
+        
 
         logging.info('Create the predictor.')
         kwargs = {'device': device,
                   'test_dataloader': test_dataloader,
                   'net': net,
-                  'loss_fns': loss_fns,
-                  'loss_weights': loss_weights,
-                  'metric_fns': metric_fns, 
-                  'output_dir': output_dir,
-                  'task': config.dataset.kwargs.task, 
-                  'data_dir': data_dir
+                  #'loss_fns': loss_fns,
+                  #'loss_weights': loss_weights,
+                  #'metric_fns': metric_fns
+                  'task': config.dataset.kwargs.task,
+                  'output_dir': output_dir
                   }
         config.predictor.kwargs.update(kwargs)
         predictor = _get_instance(src.runner.predictors, config.predictor)
@@ -191,5 +197,5 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s | %(levelname)s | %(message)s',
                         level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
     args = _parse_args()
-    for i in range(100, 200):
+    for i in range(100, 210):
         main(args, i)

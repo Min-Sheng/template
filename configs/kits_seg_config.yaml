@@ -1,6 +1,6 @@
 main:
     random_seed: 'unet2d'
-    saved_dir: '/tmp2/tungi893610/kits_result/seg/first'
+    saved_dir: '/tmp2/tungi893610/kits_result/seg/whole'
 
 dataset:
     name: 'KitsClfSegDataset'
@@ -9,9 +9,12 @@ dataset:
         data_split_csv: "/tmp2/tungi893610/dataset_split.csv"
         task: 'seg'
         train_transforms:
-            - name: 'RandomCrop'
-              kwargs:
-                  size: [256, 256]
+                #- name: 'RandomCrop'
+                #kwargs:
+                #size: [384, 384]
+                #- name: 'RandomElasticDeformation'
+                #kwargs:
+                #prob: 0.3
             - name: 'Normalize'
             - name: 'ToTensor'
         valid_transforms:
@@ -21,7 +24,7 @@ dataset:
 dataloader:
     name: 'Dataloader'
     kwargs:
-        train_batch_size: 16
+        train_batch_size: 5
         valid_batch_size: 1
         shuffle: true
         num_workers: 8
@@ -42,7 +45,7 @@ metrics:
 optimizer:
     name: 'Adam'
     kwargs:
-        lr: 0.001
+        lr: 0.0001
         weight_decay: 0
         amsgrad: false
 

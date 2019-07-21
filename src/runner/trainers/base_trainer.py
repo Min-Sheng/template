@@ -117,9 +117,9 @@ class BaseTrainer:
         trange = tqdm(dataloader,
                       total=len(dataloader),
                       desc=mode)
-        ###
-        for metric in self.metrics:
-            metric._reset()
+        ### only for clf
+        #for metric in self.metrics:
+            #metric._reset()
         ### 
         log = self._init_log()
         count = 0
