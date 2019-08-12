@@ -54,7 +54,6 @@ class BaseTrainer:
             np.random.seed(self.np_random_seeds[self.epoch - 1])
 
             # Do training and validation.
-            print()
             logging.info(f'Epoch {self.epoch}.')
             train_log, train_batch, train_outputs = self._run_epoch('training')
             logging.info(f'Train log: {train_log}.')
@@ -119,10 +118,10 @@ class BaseTrainer:
         count = 0
         for batch in trange:
             batch = self._allocate_data(batch)
-            inputs, targets = self._get_inputs_targets(batch)
+            inputs, targets1, targets2 = self._get_inputs_targets(batch)
             if mode == 'training':
                 outputs = self.net(inputs)
-                losses = self._compute_losses(outputs, targets)
+                losses = self._compute_losses(outputs, targets1)
                 loss = (torch.stack(losses) * self.loss_weights).sum()
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -130,9 +129,9 @@ class BaseTrainer:
             else:
                 with torch.no_grad():
                     outputs = self.net(inputs)
-                    losses = self._compute_losses(outputs, targets)
+                    losses = self._compute_losses(outputs, targets1)
                     loss = (torch.stack(losses) * self.loss_weights).sum()
-            metrics =  self._compute_metrics(outputs, targets)
+            metrics =  self._compute_metrics(outputs, targets2)
 
             batch_size = self.train_dataloader.batch_size if mode == 'training' else self.valid_dataloader.batch_size
             self._update_log(log, batch_size, loss, losses, metrics)

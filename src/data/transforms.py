@@ -21,6 +21,7 @@ def compose(transforms=None):
 
     _transforms = []
     for transform in transforms:
+        #print(transform)
         cls = getattr(src.data.transforms, transform.name)
         kwargs = transform.get('kwargs')
         _transforms.append(cls(**kwargs) if kwargs else cls())
@@ -141,9 +142,9 @@ class Normalize(BaseTransform):
             if normalize_tag is None or normalize_tag is True:
                 if self.means is None and self.stds is None: # Apply image-level normalization.
                     axis = tuple(range(img.ndim - 1))
-                    means = img.mean(axis=axis)
-                    stds = img.std(axis=axis)
-                    img = self._normalize(img, means, stds)
+                    self.means = img.mean(axis=axis)
+                    self.stds = img.std(axis=axis)
+                    img = self._normalize(img, self.means, self.stds)
                 else:
                     img = self._normalize(img, self.means, self.stds)
             elif normalize_tag is False:
@@ -226,13 +227,23 @@ class RandomCrop(BaseTransform):
         ndim = imgs[0].ndim
         if ndim - 1 != len(self.size):
             raise ValueError(f'The dimensions of the cropped size should be the same as the image ({ndim - 1}). Got {len(self.size)}')
-
+        
         if ndim == 3:
-            h0, hn, w0, wn = self._get_coordinates(imgs[0], self.size)
-            imgs = tuple([img[h0: hn, w0: wn] for img in imgs])
+            new_img_h0, new_img_hn, new_img_w0, new_img_wn, img_h0, img_hn, img_w0, img_wn = self._get_coordinates(imgs[0], self.size)
+            new_imgs=[]
+            for img in imgs:
+                new_img = np.zeros((self.size[0], self.size[1], ndim), img.dtype)
+                new_img[new_img_h0: new_img_hn, new_img_w0: new_img_wn] = img[img_h0: img_hn, img_w0: img_wn]
+                new_imgs.append(new_img)
+            imgs = tuple(new_imgs)
         elif ndim == 4:
-            h0, hn, w0, wn, d0, dn = self._get_coordinates(imgs[0], self.size)
-            imgs = tuple([img[h0: hn, w0: wn, d0: dn] for img in imgs])
+            new_img_h0, new_img_hn, new_img_w0, new_img_wn, new_img_d0, new_img_dn, img_h0, img_hn, img_w0, img_wn, img_d0, img_dn = self._get_coordinates(imgs[0], self.size)
+            new_imgs=[]
+            for img in imgs:
+                new_img = np.zeros((self.size[0], self.size[1], self.size[2], ndim), img.dtype)
+                new_img[new_img_h0: new_img_hn, new_img_w0: new_img_wn, new_img_d0: new_img_dn] = img[img_h0: img_hn, img_w0: img_wn, img_d0: img_dn]
+                new_imgs.append(new_img)
+            imgs = tuple(new_imgs)
         return imgs
 
     @staticmethod
@@ -245,19 +256,54 @@ class RandomCrop(BaseTransform):
         Returns:
             coordinates (tuple): The coordinates of the cropped image.
         """
-        if any(i - j < 0 for i, j in zip(img.shape, size)):
-            raise ValueError(f'The image ({img.shape}) is smaller than the cropped size ({size}). Please use a smaller cropped size.')
+        #if any(i - j < 0 for i, j in zip(img.shape, size)):
+        #    raise ValueError(f'The image ({img.shape}) is smaller than the cropped size ({size}). Please use a smaller cropped size.')
 
         if img.ndim == 3:
             h, w = img.shape[:-1]
-            ht, wt = size
-            h0, w0 = random.randint(0, h - ht), random.randint(0, w - wt)
-            return h0, h0 + ht, w0, w0 + wt
+            ht, wt = min(size[0], h), min(size[1], w)
+            h_space, w_space = h - size[0], w -size[1]
+            
+            if h_space > 0:
+                new_img_h0 = 0
+                img_h0 = random.randrange(h_space + 1)
+            else:
+                new_img_h0 = random.randrange(-h_space + 1)
+                img_h0 = 0
+            if w_space > 0:
+                new_img_w0 = 0
+                img_w0 = random.randrange(w_space + 1)
+            else:
+                new_img_w0 = random.randrange(-w_space + 1)
+                img_w0 = 0
+
+            return new_img_h0, new_img_h0 + ht, new_img_w0, new_img_w0 + wt, img_h0, img_h0 + ht, img_w0, img_w0 + wt
+
         elif img.ndim == 4:
             h, w, d = img.shape[:-1]
-            ht, wt, dt = size
-            h0, w0, d0 = random.randint(0, h - ht), random.randint(0, w - wt), random.randint(0, d - dt)
-            return h0, h0 + ht, w0, w0 + wt, d0, d0 + dt
+            ht, wt, dt = min(size[0], h), min(size[1], w), min(size[2], d)
+            h_space, w_space, d_space = h - size[0], w -size[1], d- size[2] 
+            
+            if h_space > 0:
+                new_img_h0 = 0
+                img_h0 = random.randrange(h_space + 1)
+            else:
+                new_img_h0 = random.randrange(-h_space + 1)
+                img_h0 = 0
+            if w_space > 0:
+                new_img_w0 = 0
+                img_w0 = random.randrange(w_space + 1)
+            else:
+                new_img_w0 = random.randrange(-w_space + 1)
+                img_w0 = 0
+            if d_space > 0:
+                new_img_d0 = 0
+                img_d0 = random.randrange(d_space + 1)
+            else:
+                new_img_d0 = random.randrange(-d_space + 1)
+                img_d0 = 0
+
+            return new_img_h0, new_img_h0 + ht, new_img_w0, new_img_w0 + wt, new_img_d0, new_img_do + dt, img_h0, img_h0 + ht, img_w0, img_w0 + wt, img_d0, img_d0 + dt
 
 
 class RandomElasticDeformation(BaseTransform):

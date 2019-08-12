@@ -38,10 +38,11 @@ def main(args):
         device = torch.device(config.trainer.kwargs.device)
 
         logging.info('Create the training and validation datasets.')
+        config.dataset.kwargs.update(config.main.random_seed)
         data_dir = Path(config.dataset.kwargs.data_dir)
         config.dataset.kwargs.update(data_dir=data_dir, type='train')
         train_dataset = _get_instance(src.data.datasets, config.dataset)
-        config.dataset.kwargs.update(data_dir=data_dir, type='valid')
+        config.dataset.kwargs.update(data_dir=data_dir, type='val')
         valid_dataset = _get_instance(src.data.datasets, config.dataset)
 
         logging.info('Create the training and validation dataloaders.')
