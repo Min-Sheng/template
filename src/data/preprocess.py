@@ -9,6 +9,7 @@ import numpy as np
 import cv2
 import scipy.ndimage.morphology as ndi_morph
 import scipy.ndimage.measurements as measurements
+import math
 
 def create_folder(folder):
     if not os.path.exists(folder):
@@ -88,11 +89,20 @@ def create_three_cls_label_for_subdataset(subdataset_dir):
         masks_w_e[np.where(masks_w_e==3)]=1
         create_folder(os.path.join(subdataset_dir, img_name, '3cls_label'))
         np.save('{:s}/{:s}_3cls_label.npy'.format(os.path.join(subdataset_dir, img_name, '3cls_label'), img_name), masks_w_e.astype(np.uint8))
-        
+ 
+def vec_to_angle(vector):
+
+    a = (np.arctan2(vector[..., 0], vector[..., 1]) / math.pi + 1) / 2
+    a = a /np.max(a)
+    r = np.sqrt(vector[..., 0] ** 2 + vector[..., 1] ** 2)
+    r = -r + np.max(r)
+    r = r / np.max(r)
+    return np.stack((a,r), axis=-1)
+
 def create_watershed_direction_and_energy_for_subdataset(subdataset_dir):
     
     img_name_list = os.listdir(subdataset_dir)
-    res_channels = 3
+    res_channels = 4
     
     for img_name in img_name_list:
         mask_list = glob.glob(os.path.join(subdataset_dir, img_name, 'masks','*.png'))
@@ -121,13 +131,18 @@ def create_watershed_direction_and_energy_for_subdataset(subdataset_dir):
             current_offset_field = np.zeros((rows, cols, 2))
             current_offset_field[:, :, 0] = np.expand_dims(center_of_mass[0] - np.arange(0, rows), axis=1)
             current_offset_field[:, :, 1] = np.expand_dims(center_of_mass[1] - np.arange(0, cols), axis=0)
-           
+            norm = (np.sqrt(current_offset_field[:, :, 0] ** 2 + current_offset_field[:, :, 1] ** 2 )) + 1e-10
             #res[:, :, 0][mask > 0] = 2*(current_offset_field[:, :, 0][mask > 0]  - current_offset_field[:, :, 0][mask > 0].min())/\
             #                        (current_offset_field[:, :, 0][mask > 0].max() - current_offset_field[:, :, 0][mask > 0].min()+ 1e-5)-1 + 1e-5
             #res[:, :, 1][mask > 0] = 2*(current_offset_field[:, :, 1][mask > 0]  - current_offset_field[:, :, 1][mask > 0].min())/\
             #                        (current_offset_field[:, :, 1][mask > 0].max() - current_offset_field[:, :, 1][mask > 0].min()+ 1e-5)-1 + 1e-5
-            res[:, :, 0:2][mask > 0] = current_offset_field[:, :, 0:2][mask > 0]
-            res[:, :, 2] = mask
+            #res[:, :, 0:2][mask > 0] = vec_to_angle(current_offset_field[:, :, 0:2][mask > 0])
+
+            res[:, :, 0:2][mask > 0] = (current_offset_field[:, :, 0:2] / norm[:,:,None])[mask > 0]
+            norm = -norm[mask>0] + np.max(norm[mask>0])
+            norm = norm / np.max(norm)
+            res[:, :, 2][mask>0] = norm
+            res[:, :, 3] = mask>0
             masks.append(mask)
             #watershed.append(res)
             disp.append(res)
@@ -178,7 +193,7 @@ def main(args):
         create_folder(data_split_dir + '/' + dataset + '/All')
         #split_dataset(dataset_dir, dataset)
         #create_labels_instance_for_dataset(dataset_dir)
-        create_three_cls_label_for_dataset(dataset_dir)
+        #create_three_cls_label_for_dataset(dataset_dir)
         create_watershed_direction_and_energy_for_dataset(dataset_dir)
 
 def _parse_args():

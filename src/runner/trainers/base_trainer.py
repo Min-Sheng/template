@@ -23,7 +23,7 @@ class BaseTrainer:
     """
     def __init__(self, device, train_dataloader, valid_dataloader,
                  net, loss_fns, loss_weights, metric_fns, optimizer,
-                 lr_scheduler, logger, monitor, num_epochs):
+                 lr_scheduler, logger, monitor, num_epochs, label_type):
         self.device = device
         self.train_dataloader = train_dataloader
         self.valid_dataloader = valid_dataloader
@@ -32,7 +32,7 @@ class BaseTrainer:
         self.loss_weights = torch.tensor(loss_weights, dtype=torch.float, device=device)
         self.metric_fns = [metric_fn.to(device) for metric_fn in metric_fns]
         self.optimizer = optimizer
-
+        self.label_type = label_type
         if isinstance(lr_scheduler, torch.optim.lr_scheduler.CyclicLR):
             raise NotImplementedError('Do not support torch.optim.lr_scheduler.CyclicLR scheduler yet.')
         self.lr_scheduler = lr_scheduler

@@ -29,18 +29,7 @@ class NucleiInitialSegTrainer(BaseTrainer):
         Returns:
             losses (list of torch.Tensor): The computed losses.
         """
-        #print(output.shape)
-        #print(target.shape)
-        losses = []
-        for loss in self.loss_fns:
-            #print(loss.__class__.__name__)
-            #if loss.__class__.__name__ == 'CrossEntropyLoss'
-            #    losses.append(loss(output, target.squeeze()))
-            #elif loss.__class__.__name__ == 'DiceLoss'
-            
-            #    losses.append()
-                
-            losses = [loss(output, target) for loss in self.loss_fns]
+        losses = [loss(output, target) for loss in self.loss_fns]
         return losses
 
     def _compute_metrics(self, output, target):

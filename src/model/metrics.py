@@ -27,3 +27,11 @@ class Dice(nn.Module):
         union = pred.sum(reduced_dims) + target.sum(reduced_dims)
         score = intersection / (union + 1e-10)
         return score.mean(dim=0)
+
+class Dummy(nn.Module):
+    
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, output, target):
+        return torch.Tensor([0])

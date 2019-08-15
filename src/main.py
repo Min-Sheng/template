@@ -77,7 +77,9 @@ def main(args):
         lr_scheduler = _get_instance(torch.optim.lr_scheduler, config.lr_scheduler, optimizer) if config.get('lr_scheduler') else None
 
         logging.info('Create the logger.')
-        config.logger.kwargs.update(log_dir=saved_dir / 'log', net=net, dummy_input=torch.randn(tuple(config.logger.kwargs.dummy_input)))
+        config.logger.kwargs.update(log_dir=saved_dir / 'log', net=net, dummy_input=torch.randn(tuple(config.logger.kwargs.dummy_input))) 
+        label_type = config.dataset.kwargs.pop('label_type')
+        config.logger.kwargs.update(label_type=label_type) 
         logger = _get_instance(src.callbacks.loggers, config.logger)
 
         logging.info('Create the monitor.')
@@ -95,7 +97,9 @@ def main(args):
                   'optimizer': optimizer,
                   'lr_scheduler': lr_scheduler,
                   'logger': logger,
-                  'monitor': monitor}
+                  'monitor': monitor,
+                  'label_type': label_type
+                  }
         config.trainer.kwargs.update(kwargs)
         trainer = _get_instance(src.runner.trainers, config.trainer)
 

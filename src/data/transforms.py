@@ -232,7 +232,7 @@ class RandomCrop(BaseTransform):
             new_img_h0, new_img_hn, new_img_w0, new_img_wn, img_h0, img_hn, img_w0, img_wn = self._get_coordinates(imgs[0], self.size)
             new_imgs=[]
             for img in imgs:
-                new_img = np.zeros((self.size[0], self.size[1], ndim), img.dtype)
+                new_img = np.zeros((self.size[0], self.size[1], img.shape[-1]), img.dtype)
                 new_img[new_img_h0: new_img_hn, new_img_w0: new_img_wn] = img[img_h0: img_hn, img_w0: img_wn]
                 new_imgs.append(new_img)
             imgs = tuple(new_imgs)
@@ -240,7 +240,7 @@ class RandomCrop(BaseTransform):
             new_img_h0, new_img_hn, new_img_w0, new_img_wn, new_img_d0, new_img_dn, img_h0, img_hn, img_w0, img_wn, img_d0, img_dn = self._get_coordinates(imgs[0], self.size)
             new_imgs=[]
             for img in imgs:
-                new_img = np.zeros((self.size[0], self.size[1], self.size[2], ndim), img.dtype)
+                new_img = np.zeros((self.size[0], self.size[1], self.size[2], img.shape[-1]), img.dtype)
                 new_img[new_img_h0: new_img_hn, new_img_w0: new_img_wn, new_img_d0: new_img_dn] = img[img_h0: img_hn, img_w0: img_wn, img_d0: img_dn]
                 new_imgs.append(new_img)
             imgs = tuple(new_imgs)
