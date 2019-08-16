@@ -17,10 +17,10 @@ dataset:
                   scale: [0.5, 1.5]
                   ratio: [0.75, 1.33]
                   prob: 0.25
-            - name: 'RandomRotation'
-              kwargs:
-                  degrees: [-30.0, 30.0]
-                  prob: 0.25
+              #- name: 'RandomRotation'
+              #kwargs:
+              #    degrees: [-30.0, 30.0]
+              #    prob: 0.25
             - name: 'RandomHorizontalFlip'
               kwargs:
                   prob: 0.25
@@ -35,9 +35,6 @@ dataset:
                   means: [0.485, 0.456, 0.406]
                   stds: [0.229, 0.224, 0.225]
             - name: 'ToTensor'
-              #- name: 'HorFlip'
-              #- name: 'VerFlip'
-              #- name: 'Rotate'
         valid_transforms:
             - name: 'Normalize'
               kwargs:
