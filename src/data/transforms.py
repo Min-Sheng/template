@@ -1,9 +1,11 @@
 import torch
 import random
+import math
+import numbers
 import functools
 import numpy as np
 import SimpleITK as sitk
-from skimage.transform import resize
+from skimage.transform import resize, rescale, rotate
 
 import src.data.transforms
 
@@ -179,28 +181,180 @@ class Resize(BaseTransform):
         self.size = size
         self._resize = functools.partial(resize, mode='constant', preserve_range=True)
 
-    def __call__(self, *imgs, resize_orders=None, **kwargs):
+    def __call__(self, *imgs, interpolation_orders=None, **kwargs):
         """
         Args:
             imgs (tuple of numpy.ndarray): The images to be resized.
-            resize_orders (sequence of int, optional): The corresponding interpolation order of the images (default: None, the interpolation order would be 1 for all the images).
+            interpolation_orders (sequence of int, optional): The corresponding interpolation order of the images (default: None, the interpolation order would be 1 for all the images).
 
         Returns:
             imgs (tuple of numpy.ndarray): The resized images.
         """
         if not all(isinstance(img, np.ndarray) for img in imgs):
             raise TypeError('All of the images should be numpy.ndarray.')
+        
+        if not all(img.ndim == 3 for img in imgs) and not all(img.ndim == 4 for img in imgs):
+            raise ValueError("All of the images' dimensions should be 3 (2D images) or 4 (3D images).")
 
         ndim = imgs[0].ndim
         if ndim - 1 != len(self.size):
             raise ValueError(f'The dimensions of the resized size should be the same as the image ({ndim - 1}). Got {len(self.size)}')
 
         if resize_orders:
-            imgs = tuple(self._resize(img, self.size, order).astype(img.dtype) for img, order in zip(imgs, resize_orders))
+            imgs = tuple(self._resize(img, self.size, order).astype(img.dtype) for img, order in zip(imgs, interpolation_orders))
         else:
             imgs = tuple(self._resize(img, self.size) for img in imgs)
         return imgs
 
+class RandomResize(BaseTransform):
+    """Resize a tuple of images to a random size and aspect ratio.
+    Args:
+        scale (list, optional): The range of size of the origin size (default: 0.5 to 1.5).
+        ratio (list, optional): The range of aspect ratio of the origin aspect ratio (default: 3/4, 4/3)
+        prob  (float, optional): The probability of applying the resize (default: 0.5).
+    """
+    def __init__(self, scale=[0.5, 1.5], ratio=[3. / 4., 4. / 3.], prob=0.5):
+        if len(scale) != 2:
+            raise ValueError("Scale must be a sequence of len 2.")
+        if len(ratio) != 2:
+            raise ValueError("ratio must be a sequence of len 2.")
+        self.scale = scale
+        self.ratio = ratio
+        self._rescale = functools.partial(rescale, mode='constant', preserve_range=True)
+        self._resize = functools.partial(resize, mode='constant', preserve_range=True)
+        self.prob = max(0, min(prob, 1))
+
+    def __call__(self, *imgs, resize_orders=None, **kwargs):
+        """
+        Args:
+            imgs (tuple of numpy.ndarray): The images to be resized.
+            interpolation_orders (sequence of int, optional): The corresponding interpolation order of the images (default: None, the interpolation order would be 1 for all the images).
+
+        Returns:
+            imgs (tuple of numpy.ndarray): The resized images.
+        """
+        if not all(isinstance(img, np.ndarray) for img in imgs):
+            raise TypeError('All of the images should be numpy.ndarray.')
+        
+        if not all(img.ndim == 3 for img in imgs) and not all(img.ndim == 4 for img in imgs):
+            raise ValueError("All of the images' dimensions should be 3 (2D images) or 4 (3D images).")
+
+        if random.random() < self.prob:
+            h, w = imgs[0].shape[:-1]
+            area = h* w
+            random_scale = random.uniform(*self.scale)
+            target_area = random_scale * area
+
+            log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
+            random_ratio = math.exp(random.uniform(*log_ratio))
+            h = int(round(math.sqrt(target_area * random_ratio)))
+            w = int(round(math.sqrt(target_area * random_ratio)))
+
+            if resize_orders:
+                imgs = tuple(self._rescale(img, random_scale, order, multichannel=True).astype(img.dtype) for img, order in zip(imgs, interpolation_orders))
+                imgs = tuple(self._resize(img, (h, w), order).astype(img.dtype) for img, order in zip(imgs, interpolation_orders))
+            else:
+                imgs = tuple(self._rescale(img, random_scale, multichannel=True) for img in imgs)
+                imgs = tuple(self._resize(img, (h, w)) for img in imgs)
+        return imgs
+
+class RandomRotation(BaseTransform):
+    """Rotate a tuple of images to a random degree.
+    Args:
+        degrees (list, optional): The range of degrees to select from (default: -30 to 30).
+            If degrees is a nmber instead of a list like [min, max], the range of degrees will be [-degree, degree]
+        center (list, optional): Optional center of rotation (default is the center of the image).
+            Origin is the upper left corner.
+        prob  (float, optional): The probability of applying the resize (default: 0.5).
+    """
+    def __init__(self, degrees=[-30, 30], center=None, prob=0.5):
+        
+        if isinstance(degrees, numbers.Number):
+            if degrees < 0:
+                raise ValueError("If degrees is a single number, it must be positive.")
+            self.degrees = [-degrees, degrees]
+        else:
+            if len(degrees) != 2:
+                raise ValueError("If degrees is a sequence, it must be of len 2.")
+            self.degrees = degrees
+        self.center = center
+        self._rotate = functools.partial(rotate, mode='constant', preserve_range=True)
+        self.prob = prob
+    def __call__(self, *imgs, interpolation_orders=None, **kwargs):
+        """
+        Args:
+            imgs (tuple of numpy.ndarray): The images to be resized.
+            interpolation_orders (sequence of int, optional): The corresponding interpolation order of the images (default: None, the interpolation order would be 1 for all the images).
+
+        Returns:
+            imgs (tuple of numpy.ndarray): The rotated images.
+        """
+        if not all(isinstance(img, np.ndarray) for img in imgs):
+            raise TypeError('All of the images should be numpy.ndarray.')
+        
+        if not all(img.ndim == 3 for img in imgs) and not all(img.ndim == 4 for img in imgs):
+            raise ValueError("All of the images' dimensions should be 3 (2D images) or 4 (3D images).")
+        
+        if random.random() < self.prob:
+            
+            angle = random.uniform(*self.degrees)
+
+            if interpolation_orders:
+                imgs = tuple(self._rotate(img, angle, order, resize=True).astype(img.dtype) for img, order in zip(imgs, resize_orders))
+            else:
+                imgs = tuple(self._rotate(img, angle, resize=True) for img in imgs)
+        return imgs
+
+class RandomHorizontalFlip(BaseTransform):
+    """Do the random flip horizontally.
+    Args:
+        prob (float, optional): The probability of applying the flip (default: 0.5).
+    """
+    def __init__(self, prob=0.5):
+        self.prob = max(0, min(prob, 1))
+
+    def __call__(self, *imgs, **kwargs):
+        """
+        Args:
+            imgs (tuple of numpy.ndarray): The images to be flipped.
+        Returns:
+            imgs (tuple of numpy.ndarray): The flipped images.
+        """
+        if not all(isinstance(img, np.ndarray) for img in imgs):
+            raise TypeError('All of the images should be numpy.ndarray.')
+
+        if not all(img.ndim == 3 for img in imgs) and not all(img.ndim == 4 for img in imgs):
+            raise ValueError("All of the images' dimensions should be 3 (2D images) or 4 (3D images).")
+
+        if random.random() < self.prob:
+            imgs = tuple([np.flip(img, 1) for img in imgs])
+        return imgs
+    
+    
+class RandomVerticalFlip(BaseTransform):
+    """Do the random flip vertically.
+    Args:
+        prob (float, optional): The probability of applying the flip (default: 0.5).
+    """
+    def __init__(self, prob=0.5):
+        self.prob = max(0, min(prob, 1))
+
+    def __call__(self, *imgs, **kwargs):
+        """
+        Args:
+            imgs (tuple of numpy.ndarray): The images to be flipped.
+        Returns:
+            imgs (tuple of numpy.ndarray): The flipped images.
+        """
+        if not all(isinstance(img, np.ndarray) for img in imgs):
+            raise TypeError('All of the images should be numpy.ndarray.')
+
+        if not all(img.ndim == 3 for img in imgs) and not all(img.ndim == 4 for img in imgs):
+            raise ValueError("All of the images' dimensions should be 3 (2D images) or 4 (3D images).")
+
+        if random.random() < self.prob:
+            imgs = tuple([np.flip(img, 0) for img in imgs])
+        return imgs
 
 class RandomCrop(BaseTransform):
     """Crop a tuple of images at the same random location.

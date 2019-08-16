@@ -1,7 +1,7 @@
 main:
     random_seed: 0
     #saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_3cls_label_dice/'
-    saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_watershed_label2/'
+    saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_watershed_label_resnet50/'
     #loaded_path: 'path/to/checkpoint.pth' # The loaded_path is not necessary.
 
 dataset:
@@ -12,6 +12,21 @@ dataset:
         label_type: 'watershed_label' #choices: ['instance', '3cls_label', 'watershed_label']
         label_proportion: 0.5
         train_transforms: # Could define multiple transforms.
+            - name: 'RandomResize'
+              kwargs:
+                  scale: [0.5, 1.5]
+                  ratio: [0.75, 1.33]
+                  prob: 0.25
+            - name: 'RandomRotation'
+              kwargs:
+                  degrees: [-30.0, 30.0]
+                  prob: 0.25
+            - name: 'RandomHorizontalFlip'
+              kwargs:
+                  prob: 0.25
+            - name: 'RandomVerticalFlip'
+              kwargs:
+                  prob: 0.25
             - name: 'RandomCrop'
               kwargs:
                   size: [256,256]
@@ -39,7 +54,7 @@ dataloader:
         num_workers: 8
 
 net:
-    name: 'UNet'
+    name: 'ResNet50UNet'
     kwargs:
         in_channels: 3
         out_channels: 4
@@ -54,11 +69,11 @@ losses:
     #- name: 'DisplacementFieldLoss'
     #  weight: 1.0
     - name: 'AngleLoss'
-      weight: 0.08
+      weight: 0.1
     - name: 'EnergyL2Loss'
-      weight: 0.02
+      weight: 0.1
     - name: 'BinaryDiceLoss'
-      weight: 0.9
+      weight: 0.8
 
 metrics:
     #- name: 'Dice'
@@ -95,4 +110,4 @@ trainer:
     name: 'NucleiInitialSegTrainer'
     kwargs:
         device: 'cuda:0'
-        num_epochs: 50
+        num_epochs: 100
