@@ -329,6 +329,8 @@ class RandomRotation(BaseTransform):
                     for i, (img, order) in enumerate(zip(imgs, interpolation_orders)):
                         if i == 2 or i == 3:
                             img_1 = self._rotate(img[...,0:3], angle, order=0, resize=True).astype(img.dtype)
+                            img_1[...,0] = img_1[...,0] * np.cos(angle * np.pi / 180) - img_1[...,1] * np.sin(angle * np.pi / 180)
+                            img_1[...,1] = img_1[...,0] * np.sin(angle * np.pi / 180) + img_1[...,1] * np.cos(angle * np.pi / 180)
                             img_2 = self._rotate(img[...,3], angle, order=order, resize=True).astype(img.dtype)
                             img = np.dstack((img_1, img_2[...,None]))
                             new_imgs.append(img)
@@ -341,6 +343,8 @@ class RandomRotation(BaseTransform):
                     for i, img in enumerate(imgs):
                         if i == 2 or i == 3:
                             img_1 = self._rotate(img[...,0:3], angle, resize=True).astype(img.dtype)
+                            img_1[...,0] = img_1[...,0] * np.cos(angle * np.pi / 180) - img_1[...,1] * np.sin(angle * np.pi / 180)
+                            img_1[...,1] = img_1[...,0] * np.sin(angle * np.pi / 180) + img_1[...,1] * np.cos(angle * np.pi / 180)
                             img_2 = self._rotate(img[...,3], angle, resize=True).astype(img.dtype)
                             img = np.dstack((img_1, img_2[...,None]))
                             new_imgs.append(img)

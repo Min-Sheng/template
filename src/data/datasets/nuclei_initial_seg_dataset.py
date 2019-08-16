@@ -133,7 +133,7 @@ class NucleiInitialSegDataset(BaseDataset):
             ori_img, img ,semi_label, full_label = self.valid_transforms(ori_img, img, semi_label, full_label, interpolation_orders = [1, 1, 0, 0], normalize_tags=[False, True, False, False], dtypes=[torch.float, torch.float, label_dtype, label_dtype], label_type = self.label_type)
 
         ori_img, img, semi_label, full_label = ori_img.permute(2, 0, 1).contiguous(), img.permute(2, 0, 1).contiguous(), semi_label.permute(2, 0, 1).contiguous(), full_label.permute(2, 0, 1).contiguous()
-         
+        
         return {'name': name, 'ori_image': ori_img, 'image':img, 'semi_label': semi_label, 'full_label': full_label}
         
 
