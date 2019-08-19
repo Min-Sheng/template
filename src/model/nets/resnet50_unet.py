@@ -84,6 +84,8 @@ class ResNet50UNet(BaseNet):
 
     def __init__(self, in_channels, out_channels):
         super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         #self.resnet = torchvision.models.resnet.resnet50(pretrained=True)
         self.resnet = ResNet50(in_channels, pretrained=True)
         down_blocks = []

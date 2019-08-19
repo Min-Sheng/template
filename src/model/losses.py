@@ -86,8 +86,12 @@ class AngleLoss(nn.Module):
         
         output_disp = torch.clamp(output[:,0:2,:,:] * (1 / (torch.norm(output[:,0:2,:,:], p=2, dim=1, keepdim=True) + 1e-7)), -1+1e-7, 1-1e-7)
         target_disp = torch.clamp(target[:,0:2,:,:] * (1 / (torch.norm(target[:,0:2,:,:], p=2, dim=1, keepdim=True) + 1e-7)), -1+1e-7, 1-1e-7)
+        #print(torch.isnan(target_disp).any())
+        #print(torch.isnan(output_disp).any())
+
         # Calculate the angle loss
         errorAngles = torch.acos(torch.clamp((output_disp*target_disp*(target[:,3,:,:][:,None,:,:])).sum(dim=1), -1+1e-7, 1-1e-7))
+        #print(torch.isnan(errorAngles).any())
         angleLoss = torch.abs(errorAngles).mean()
         
         return angleLoss
@@ -105,6 +109,8 @@ class EnergyL2Loss(nn.Module):
         sigmoid = nn.Sigmoid()
         output_energy = sigmoid(output[:,2,:,:]*target[:,3,:,:])
         target_energy = target[:,2,:,:]
+        #print(torch.isnan(target_energy).any())
+        #print(torch.isnan(output_energy).any())
         l2Loss = nn.MSELoss()
         energyLoss = l2Loss(output_energy, target_energy)
 
@@ -141,8 +147,6 @@ class DisplacementFieldLoss(nn.Module):
         
         output_disp = torch.clamp(output[:,0:2,:,:] * (1 / (torch.norm(output[:,0:2,:,:], p=2, dim=1, keepdim=True) + 1e-7)), -1+1e-7, 1-1e-7)
         target_disp = torch.clamp(target[:,0:2,:,:] * (1 / (torch.norm(target[:,0:2,:,:], p=2, dim=1, keepdim=True) + 1e-7)), -1+1e-7, 1-1e-7)
-        #print(torch.isnan(target_disp).any())
-        #print(torch.isnan(output_disp).any())
         # Calculate the angle loss
         errorAngles = torch.acos(torch.clamp((output_disp*target_disp*(target[:,3,:,:][:,None,:,:])).sum(dim=1), -1+1e-7, 1-1e-7))
         angleLoss = torch.abs(errorAngles).mean()

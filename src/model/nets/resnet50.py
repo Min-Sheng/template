@@ -58,6 +58,7 @@ class ResNet(BaseNet):
 
     def __init__(self, in_channels, block, layers, strides=(2, 2, 2, 2), dilations=(1, 1, 1, 1)):
         self.inplanes = 64
+        self.in_channels = in_channels
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=strides[0], padding=3,
                                bias=False)

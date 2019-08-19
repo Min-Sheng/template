@@ -209,11 +209,11 @@ class Resize(BaseTransform):
 class RandomResize(BaseTransform):
     """Resize a tuple of images to a random size and aspect ratio.
     Args:
-        scale (list, optional): The range of size of the origin size (default: 0.5 to 1.5).
+        scale (list, optional): The range of size of the origin size (default: 0.75 to 1.33).
         ratio (list, optional): The range of aspect ratio of the origin aspect ratio (default: 3/4, 4/3)
         prob  (float, optional): The probability of applying the resize (default: 0.5).
     """
-    def __init__(self, scale=[0.5, 1.5], ratio=[3. / 4., 4. / 3.], prob=0.5):
+    def __init__(self, scale=[0.75, 1.33], ratio=[3. / 4., 4. / 3.], prob=0.5):
         if len(scale) != 2:
             raise ValueError("Scale must be a sequence of len 2.")
         if len(ratio) != 2:
@@ -252,10 +252,12 @@ class RandomResize(BaseTransform):
             if label_type!='watershed_label':
                 if interpolation_orders:
                     imgs = tuple(self._rescale(img, random_scale, order, multichannel=True).astype(img.dtype) for img, order in zip(imgs, interpolation_orders))
-                    imgs = tuple(self._resize(img, (h, w), order).astype(img.dtype) for img, order in zip(imgs, interpolation_orders))
+                    if label_type != '3cls_label':
+                        imgs = tuple(self._resize(img, (h, w), order).astype(img.dtype) for img, order in zip(imgs, interpolation_orders))
                 else:
                     imgs = tuple(self._rescale(img, random_scale, multichannel=True) for img in imgs)
-                    imgs = tuple(self._resize(img, (h, w)) for img in imgs)
+                    if label_type != '3cls_label':
+                        imgs = tuple(self._resize(img, (h, w)) for img in imgs)
             else: 
                 if interpolation_orders:
                     new_imgs = []
@@ -320,7 +322,7 @@ class RandomRotation(BaseTransform):
             angle = random.uniform(*self.degrees)
             if label_type != 'watershed_label':
                 if interpolation_orders:
-                    imgs = tuple(self._rotate(img, angle, order, resize=True).astype(img.dtype) for img, order in zip(imgs, interpolation_orders))
+                    imgs = tuple(self._rotate(img, angle, order=order, resize=True).astype(img.dtype) for img, order in zip(imgs, interpolation_orders))
                 else:
                     imgs = tuple(self._rotate(img, angle, resize=True) for img in imgs)
             else:
@@ -328,7 +330,7 @@ class RandomRotation(BaseTransform):
                     new_imgs = []
                     for i, (img, order) in enumerate(zip(imgs, interpolation_orders)):
                         if i == 2 or i == 3:
-                            img_1 = self._rotate(img[...,0:3], angle, order=0, resize=True).astype(img.dtype)
+                            img_1 = self._rotate(img[...,0:3], angle, order=1, resize=True).astype(img.dtype)
                             img_1[...,0] = img_1[...,0] * np.cos(angle * np.pi / 180) - img_1[...,1] * np.sin(angle * np.pi / 180)
                             img_1[...,1] = img_1[...,0] * np.sin(angle * np.pi / 180) + img_1[...,1] * np.cos(angle * np.pi / 180)
                             img_2 = self._rotate(img[...,3], angle, order=order, resize=True).astype(img.dtype)

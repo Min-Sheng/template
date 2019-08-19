@@ -67,31 +67,28 @@ def create_three_cls_label_for_subdataset(subdataset_dir):
     img_name_list = os.listdir(subdataset_dir)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
     for img_name in img_name_list:
-        mask_list = glob.glob(os.path.join(subdataset_dir, img_name, 'masks','*.png'))
-        masks = []
-        contours = []
-        for i , mask_file in enumerate(mask_list):
+        mask_list = sorted(glob.glob(os.path.join(subdataset_dir, img_name, 'masks','*.png')))
+        print(img_name)
+        print(len(mask_list))
+        mask = imageio.imread(mask_list[0])
+        contour = cv2.dilate(mask, kernel, iterations=1) - mask
+        masks_w_e = mask.copy()
+        instance_mask = mask.copy()
+        masks_w_e[np.where(mask)] = 2
+        masks_w_e[np.where(contour)] = 1
+        instance_mask[np.where(mask)] = 1
+        for i , mask_file in enumerate(mask_list[1:]):
             mask = imageio.imread(mask_file)
-            #cnts,_ = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-            #contour = np.zeros(mask.shape)
-            #cv2.drawContours(contour, cnts, 0, 1, 1)
-            #contour = cv2.morphologyEx(contour, cv2.MORPH_CLOSE, kernel)
             contour = cv2.dilate(mask, kernel, iterations=1) - mask
-            masks.append(mask)
-            contours.append(contour)
-        masks = np.stack(masks, axis = -1).astype(np.uint8)
-        contours = np.stack(contours, axis = -1).astype(np.uint8)
-        masks = (np.sum(masks, axis = -1)>0).astype(np.uint8)
-        contours = (np.sum(contours, axis = -1)>0).astype(np.uint8)
-        masks_w_e = masks + contours*2
-        masks_w_e[np.where(masks_w_e>1)]=3
-        masks_w_e[np.where(masks_w_e==1)]=2
-        masks_w_e[np.where(masks_w_e==3)]=1
+            masks_w_e[np.where(mask)]=2
+            masks_w_e[np.where(contour)]=1
+            instance_mask[np.where(mask)] = (i+2)
         create_folder(os.path.join(subdataset_dir, img_name, '3cls_label'))
+        create_folder(os.path.join(subdataset_dir, img_name, 'no_overlap_label'))
         np.save('{:s}/{:s}_3cls_label.npy'.format(os.path.join(subdataset_dir, img_name, '3cls_label'), img_name), masks_w_e.astype(np.uint8))
- 
-def vec_to_angle(vector):
+        np.save('{:s}/{:s}_no_overlap_label.npy'.format(os.path.join(subdataset_dir, img_name, 'no_overlap_label'), img_name), instance_mask.astype(np.uint8))
 
+def vec_to_angle(vector):
     a = (np.arctan2(vector[..., 0], vector[..., 1]) / math.pi + 1) / 2
     a = a /np.max(a)
     r = np.sqrt(vector[..., 0] ** 2 + vector[..., 1] ** 2)
@@ -100,59 +97,42 @@ def vec_to_angle(vector):
     return np.stack((a,r), axis=-1)
 
 def create_watershed_direction_and_energy_for_subdataset(subdataset_dir):
-    
     img_name_list = os.listdir(subdataset_dir)
     res_channels = 4
-    
     for img_name in img_name_list:
-        mask_list = glob.glob(os.path.join(subdataset_dir, img_name, 'masks','*.png'))
-        masks = []
-        #watershed = []
-        disp = []
-        
-        for i , mask_file in enumerate(mask_list):
+        mask_list = sorted(glob.glob(os.path.join(subdataset_dir, img_name, 'masks','*.png')))
+        print(img_name)
+        print(len(mask_list))
+        mask = imageio.imread(mask_list[0])
+        rows, cols = mask.shape
+        disp_field = np.zeros((rows, cols, res_channels))
+        center_of_mass = measurements.center_of_mass(mask)
+        current_offset_field = np.zeros((rows, cols, 2))
+        current_offset_field[:, :, 0] = np.expand_dims(center_of_mass[0] - np.arange(0, rows), axis=1)
+        current_offset_field[:, :, 1] = np.expand_dims(center_of_mass[1] - np.arange(0, cols), axis=0)
+        strength = (np.sqrt(current_offset_field[:, :, 0]**2 + current_offset_field[:, :, 1]**2)) + 1e-10
+        disp_field[:, :, 0:2][mask > 0] = (current_offset_field[:, :, 0:2]/strength[:,:,None])[mask > 0]
+        strength = -strength[mask>0] + np.max(strength[mask>0])
+        strength = strength / (np.max(strength) + 1e-10)
+        disp_field[:, :, 2][mask>0] = strength
+        disp_field[:, :, 3][mask>0] = 1
+        if np.isnan(strength).any():
+            raise Exception("NaN!")
+        for i , mask_file in enumerate(mask_list[1:]):
             mask = imageio.imread(mask_file)
             rows, cols = mask.shape
-            res = np.zeros((rows, cols, res_channels))
-            
-            #edt, inds = distance_transform_edt(mask, return_distances=True, return_indices=True)
-            #border_vector = np.array([
-            #np.expand_dims(np.arange(0, rows), axis=1) - inds[0],
-            #np.expand_dims(np.arange(0, cols), axis=0) - inds[1]])
-            #border_vector_norm = border_vector / (np.linalg.norm(border_vector, axis=0, keepdims=True) + 1e-5)
-            #edt_norm = (edt - edt.min()) / (edt.max() - edt.min())
-
-            #res[:, :, 0] = border_vector_norm[0]
-            #res[:, :, 1] = border_vector_norm[1]
-            #res[:, :, 2] = edt
-            
             center_of_mass = measurements.center_of_mass(mask)
-
             current_offset_field = np.zeros((rows, cols, 2))
             current_offset_field[:, :, 0] = np.expand_dims(center_of_mass[0] - np.arange(0, rows), axis=1)
             current_offset_field[:, :, 1] = np.expand_dims(center_of_mass[1] - np.arange(0, cols), axis=0)
-            norm = (np.sqrt(current_offset_field[:, :, 0] ** 2 + current_offset_field[:, :, 1] ** 2 )) + 1e-10
-            #res[:, :, 0][mask > 0] = 2*(current_offset_field[:, :, 0][mask > 0]  - current_offset_field[:, :, 0][mask > 0].min())/\
-            #                        (current_offset_field[:, :, 0][mask > 0].max() - current_offset_field[:, :, 0][mask > 0].min()+ 1e-5)-1 + 1e-5
-            #res[:, :, 1][mask > 0] = 2*(current_offset_field[:, :, 1][mask > 0]  - current_offset_field[:, :, 1][mask > 0].min())/\
-            #                        (current_offset_field[:, :, 1][mask > 0].max() - current_offset_field[:, :, 1][mask > 0].min()+ 1e-5)-1 + 1e-5
-            #res[:, :, 0:2][mask > 0] = vec_to_angle(current_offset_field[:, :, 0:2][mask > 0])
-
-            res[:, :, 0:2][mask > 0] = (current_offset_field[:, :, 0:2] / norm[:,:,None])[mask > 0]
-            norm = -norm[mask>0] + np.max(norm[mask>0])
-            norm = norm / np.max(norm)
-            res[:, :, 2][mask>0] = norm
-            res[:, :, 3] = mask>0
-            masks.append(mask)
-            #watershed.append(res)
-            disp.append(res)
-        
-        masks = np.stack(masks, axis = -1).astype(np.uint8)
-        masks = (np.sum(masks, axis = -1)>0).astype(np.uint8)
-        #watershed = np.stack(watershed, axis = -1).astype(np.float32)
-        #watershed = np.sum(watershed, axis = -1).astype(np.float32)
-        disp_field = np.stack(disp, axis = -1).astype(np.float32)
-        disp_field = np.sum(disp_field, axis = -1).astype(np.float32)
+            strength = (np.sqrt(current_offset_field[:, :, 0]**2 + current_offset_field[:, :, 1]**2)) + 1e-10
+            disp_field[:, :, 0:2][mask > 0] = (current_offset_field[:, :, 0:2]/strength[:,:,None])[mask > 0]
+            strength = -strength[mask>0] + np.max(strength[mask>0])
+            strength = strength / (np.max(strength) + 1e-10)
+            disp_field[:, :, 2][mask>0] = strength
+            disp_field[:, :, 3][mask>0] = 1
+            if np.isnan(strength).any():
+                raise Exception("NaN!")
         create_folder(os.path.join(subdataset_dir, img_name, 'watershed_label'))
         np.save('{:s}/{:s}_watershed_label.npy'.format(os.path.join(subdataset_dir, img_name, 'watershed_label'), img_name), disp_field.astype(np.float32))
 
@@ -193,8 +173,8 @@ def main(args):
         create_folder(data_split_dir + '/' + dataset + '/All')
         #split_dataset(dataset_dir, dataset)
         #create_labels_instance_for_dataset(dataset_dir)
-        #create_three_cls_label_for_dataset(dataset_dir)
-        create_watershed_direction_and_energy_for_dataset(dataset_dir)
+        create_three_cls_label_for_dataset(dataset_dir)
+        #create_watershed_direction_and_energy_for_dataset(dataset_dir)
 
 def _parse_args():
     parser = argparse.ArgumentParser(description="The data preprocessing.")

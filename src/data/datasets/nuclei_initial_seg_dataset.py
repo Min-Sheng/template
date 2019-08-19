@@ -94,17 +94,24 @@ class NucleiInitialSegDataset(BaseDataset):
             label_idxs = np.unique(instance_label)
             np.random.shuffle(label_idxs[1:])
             random_drop_idxs = label_idxs[:int(len(label_idxs)*self.label_proportion)]
+            random_remain_idxs = label_idxs[int(len(label_idxs)*0.5):]
             
             mask = instance_label.copy()
+            mask_dropped = instance_label.copy()
             semi_label = tricls_label.copy()
             
             mask[np.isin(mask, random_drop_idxs)] = 0
+            mask_dropped[np.isin(mask_dropped, random_remain_idxs)] = 0
+            
             mask = (mask > 0).astype(np.uint8)
+            mask_dropped = (mask_dropped > 0 ).astype(np.uint8)
             mask = cv2.dilate(mask, kernel, iterations=1)
 
             #semi_label = to_one_hot(semi_label * mask).astype(np.int32)
             #full_label = to_one_hot(tricls_label).astype(np.int32)
-            semi_label = (semi_label * mask)[...,None].astype(np.int32)
+            semi_label = semi_label * mask
+            semi_label[np.where((semi_label + mask_dropped)==3)] = 0
+            semi_label = semi_label[...,None].astype(np.int32)
             full_label = tricls_label[...,None].astype(np.int32)
 
             label_dtype = torch.long

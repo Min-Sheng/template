@@ -1,0 +1,110 @@
+main:
+    random_seed: 0
+    saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_watershed_label_resnet50_all'
+    #saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_watershed_label_resnet50/'
+    #loaded_path: 'path/to/checkpoint.pth' # The loaded_path is not necessary.
+
+dataset:
+    name: 'NucleiInitialSegDataset'
+    kwargs:
+        data_dir: '/home/vincentwu-cmlab/cell_data/DSB2018plus/'
+        data_split_list: '/home/vincentwu-cmlab/template/data_split/DSB2018plus/All/train_val_test.json'
+        label_type: 'watershed_label' #choices: ['instance', '3cls_label', 'watershed_label']
+        label_proportion: 0.5
+        train_transforms: # Could define multiple transforms.
+            - name: 'RandomResize'
+              kwargs:
+                  scale: [0.5, 1.5]
+                  ratio: [1.0, 1.0]
+                  prob: 0.25
+            - name: 'RandomRotation'
+              kwargs:
+                  degrees: [-30.0, 30.0]
+                  prob: 0.25
+            - name: 'RandomHorizontalFlip'
+              kwargs:
+                  prob: 0.25
+            - name: 'RandomVerticalFlip'
+              kwargs:
+                  prob: 0.25
+            - name: 'RandomCrop'
+              kwargs:
+                  size: [256,256]
+            - name: 'Normalize'
+              kwargs:
+                  means: [0.485, 0.456, 0.406]
+                  stds: [0.229, 0.224, 0.225]
+            - name: 'ToTensor'
+        valid_transforms:
+            - name: 'Normalize'
+              kwargs:
+                  means: [0.485, 0.456, 0.406]
+                  stds: [0.229, 0.224, 0.225]
+            - name: 'ToTensor'
+
+dataloader:
+    name: 'Dataloader'
+    kwargs:
+        train_batch_size: 16
+        valid_batch_size: 1
+        shuffle: true
+        num_workers: 8
+
+net:
+    name: 'ResNet50UNet'
+    kwargs:
+        in_channels: 3
+        out_channels: 4
+
+losses:
+    #- name: 'MyBinaryCrossEntropyLoss'
+    #  weight: 0.5
+    #- name: 'JaccardLoss'
+    #  weight: 0.5
+    #- name: 'DiceLoss'
+    #  weight: 1.0
+    #- name: 'DisplacementFieldLoss'
+    #  weight: 1.0
+    - name: 'AngleLoss'
+      weight: 0.1
+    - name: 'EnergyL2Loss'
+      weight: 0.1
+    - name: 'BinaryDiceLoss'
+      weight: 0.8
+
+metrics:
+    #- name: 'Dice'
+    - name: 'Dummy'
+
+optimizer:
+    name: 'Adam'
+    kwargs:
+        lr: 0.001
+        weight_decay: 0
+        amsgrad: false
+
+# The lr_scheduler section is not necessary.
+lr_scheduler:
+    name: 'StepLR'
+    kwargs:
+        step_size: 30
+        gamma: 0.1
+
+logger:
+    name: 'NucleiInitialSegLogger'
+    kwargs:
+        dummy_input: [16, 3, 256, 256]
+
+monitor:
+    name: 'Monitor'
+    kwargs:
+        mode: 'min'
+        target: 'BinaryDiceLoss'
+        saved_freq: 10
+        early_stop: 0
+
+trainer:
+    name: 'NucleiInitialSegTrainer'
+    kwargs:
+        device: 'cuda:0'
+        num_epochs: 100

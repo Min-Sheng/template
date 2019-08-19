@@ -109,3 +109,6 @@ venv.bak/
 #!configs/train/example_config.yaml
 #!configs/test/example_config.yaml
 models/
+
+# Bash files
+*.sh
