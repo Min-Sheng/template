@@ -1,13 +1,13 @@
 main:
     random_seed: 0
-    saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_3cls_label_jaccard_resnet50_all'
+    saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_3cls_label_dice_resnet50_all'
     #saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_watershed_label_resnet50/'
     #loaded_path: 'path/to/checkpoint.pth' # The loaded_path is not necessary.
 
 dataset:
     name: 'NucleiInitialSegDataset'
     kwargs:
-        data_dir: '/home/vincentwu-cmlab/cell_data/DSB2018plus/'
+        data_dir: '/home/vincentwu-cmlab/cell_data/DSB2018plus'
         data_split_list: '/home/vincentwu-cmlab/template/data_split/DSB2018plus/All/train_val_test.json'
         label_type: '3cls_label' #choices: ['instance', '3cls_label', 'watershed_label']
         label_proportion: 0.5
@@ -57,12 +57,12 @@ net:
         out_channels: 3
 
 losses:
-    - name: 'MyBinaryCrossEntropyLoss'
-      weight: 0.5
-    - name: 'JaccardLoss'
-      weight: 0.5
-    #- name: 'DiceLoss'
-    #  weight: 1.0
+    #- name: 'MyBinaryCrossEntropyLoss'
+    #  weight: 0.5
+    #- name: 'JaccardLoss'
+    #  weight: 0.5
+    - name: 'DiceLoss'
+      weight: 1.0
     #- name: 'DisplacementFieldLoss'
     #  weight: 1.0
     #- name: 'AngleLoss'

@@ -7,7 +7,7 @@ main:
 dataset:
     name: 'NucleiInitialSegDataset'
     kwargs:
-        data_dir: '/home/vincentwu-cmlab/cell_data/DSB2018plus/'
+        data_dir: '/home/vincentwu-cmlab/cell_data/DSB2018plus'
         data_split_list: '/home/vincentwu-cmlab/template/data_split/DSB2018plus/All/train_val_test.json'
         label_type: 'watershed_label' #choices: ['instance', '3cls_label', 'watershed_label']
         label_proportion: 0.5
