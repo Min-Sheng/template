@@ -1,6 +1,6 @@
 main:
     random_seed: 0
-    saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_watershed_label_resnet50_all'
+    saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_watershed_label_resnet50_all_point'
     #saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_watershed_label_resnet50/'
     #loaded_path: 'path/to/checkpoint.pth' # The loaded_path is not necessary.
 
@@ -11,12 +11,23 @@ dataset:
         data_split_list: '/home/vincentwu-cmlab/template/data_split/DSB2018plus/All/train_val_test.json'
         label_type: 'watershed_label' #choices: ['instance', '3cls_label', 'watershed_label']
         label_proportion: 0.5
-        train_transforms: # Could define multiple transforms.
-            - name: 'RandomResize'
+        train_preprocessings:
+            - name: 'Normalize'
               kwargs:
-                  scale: [0.5, 1.5]
-                  ratio: [1.0, 1.0]
-                  prob: 0.25
+                  means: [0.485, 0.456, 0.406]
+                  stds: [0.229, 0.224, 0.225]
+            - name: 'RandomCrop'
+              kwargs:
+                  size: [256, 256]
+        valid_preprocessings:
+            - name: 'Normalize'
+              kwargs:
+                  means: [0.485, 0.456, 0.406]
+                  stds: [0.229, 0.224, 0.225]
+            - name: 'RandomCrop'
+              kwargs:
+                  size: [256, 256]
+        augments:
             - name: 'RandomRotation'
               kwargs:
                   degrees: [-30.0, 30.0]
@@ -27,21 +38,9 @@ dataset:
             - name: 'RandomVerticalFlip'
               kwargs:
                   prob: 0.25
-            - name: 'RandomCrop'
-              kwargs:
-                  size: [256,256]
-            - name: 'Normalize'
-              kwargs:
-                  means: [0.485, 0.456, 0.406]
-                  stds: [0.229, 0.224, 0.225]
+        transforms:
             - name: 'ToTensor'
-        valid_transforms:
-            - name: 'Normalize'
-              kwargs:
-                  means: [0.485, 0.456, 0.406]
-                  stds: [0.229, 0.224, 0.225]
-            - name: 'ToTensor'
-
+         
 dataloader:
     name: 'Dataloader'
     kwargs:
@@ -54,7 +53,7 @@ net:
     name: 'ResNet50UNet'
     kwargs:
         in_channels: 3
-        out_channels: 4
+        out_channels: 5
 
 losses:
     #- name: 'MyBinaryCrossEntropyLoss'
@@ -63,14 +62,12 @@ losses:
     #  weight: 0.5
     #- name: 'DiceLoss'
     #  weight: 1.0
-    #- name: 'DisplacementFieldLoss'
-    #  weight: 1.0
     - name: 'AngleLoss'
-      weight: 0.1
-    - name: 'EnergyL2Loss'
-      weight: 0.1
-    - name: 'BinaryDiceLoss'
-      weight: 0.8
+      weight: 0.5
+    #- name: 'EnergyL2Loss'
+    #  weight: 0.1
+    - name: 'CenterMaskDiceLoss'
+      weight: 0.5
 
 metrics:
     #- name: 'Dice'
@@ -99,7 +96,7 @@ monitor:
     name: 'Monitor'
     kwargs:
         mode: 'min'
-        target: 'BinaryDiceLoss'
+        target: 'CenterMaskDiceLoss'
         saved_freq: 10
         early_stop: 0
 

@@ -11,12 +11,23 @@ dataset:
         data_split_list: '/home/vincentwu-cmlab/template/data_split/DSB2018plus/All/train_val_test.json'
         label_type: '3cls_label' #choices: ['instance', '3cls_label', 'watershed_label']
         label_proportion: 0.5
-        train_transforms: # Could define multiple transforms.
-            - name: 'RandomResize'
+        train_preprocessings:
+            - name: 'Normalize'
               kwargs:
-                  scale: [0.5, 1.5]
-                  ratio: [1.0, 1.0]
-                  prob: 0.25
+                  means: [0.485, 0.456, 0.406]
+                  stds: [0.229, 0.224, 0.225]
+            - name: 'RandomCrop'
+              kwargs:
+                  size: [256, 256]
+        valid_preprocessings:
+            - name: 'Normalize'
+              kwargs:
+                  means: [0.485, 0.456, 0.406]
+                  stds: [0.229, 0.224, 0.225]
+            - name: 'RandomCrop'
+              kwargs:
+                  size: [256, 256]
+        augments:
             - name: 'RandomRotation'
               kwargs:
                   degrees: [-30.0, 30.0]
@@ -27,19 +38,7 @@ dataset:
             - name: 'RandomVerticalFlip'
               kwargs:
                   prob: 0.25
-            - name: 'RandomCrop'
-              kwargs:
-                  size: [256,256]
-            - name: 'Normalize'
-              kwargs:
-                  means: [0.485, 0.456, 0.406]
-                  stds: [0.229, 0.224, 0.225]
-            - name: 'ToTensor'
-        valid_transforms:
-            - name: 'Normalize'
-              kwargs:
-                  means: [0.485, 0.456, 0.406]
-                  stds: [0.229, 0.224, 0.225]
+        transforms:
             - name: 'ToTensor'
 
 dataloader:
@@ -63,8 +62,6 @@ losses:
     #  weight: 0.5
     - name: 'DiceLoss'
       weight: 1.0
-    #- name: 'DisplacementFieldLoss'
-    #  weight: 1.0
     #- name: 'AngleLoss'
     #  weight: 0.2
     #- name: 'EnergyL2Loss'
