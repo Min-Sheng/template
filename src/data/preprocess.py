@@ -98,7 +98,8 @@ def vec_to_angle(vector):
 
 def create_watershed_direction_and_energy_for_subdataset(subdataset_dir):
     img_name_list = os.listdir(subdataset_dir)
-    res_channels = 4
+    #kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3))
+    res_channels = 3
     for img_name in img_name_list:
         mask_list = sorted(glob.glob(os.path.join(subdataset_dir, img_name, 'masks','*.png')))
         print(img_name)
@@ -112,10 +113,15 @@ def create_watershed_direction_and_energy_for_subdataset(subdataset_dir):
         current_offset_field[:, :, 1] = np.expand_dims(center_of_mass[1] - np.arange(0, cols), axis=0)
         strength = (np.sqrt(current_offset_field[:, :, 0]**2 + current_offset_field[:, :, 1]**2)) + 1e-10
         disp_field[:, :, 0:2][mask > 0] = (current_offset_field[:, :, 0:2]/strength[:,:,None])[mask > 0]
-        strength = -strength[mask>0] + np.max(strength[mask>0])
+        strength = -strength + np.max(strength[mask>0])
         strength = strength / (np.max(strength) + 1e-10)
-        disp_field[:, :, 2][mask>0] = strength
-        disp_field[:, :, 3][mask>0] = 1
+        #disp_field[:, :, 2][mask>0] = strength[mask>0]
+        #disp_field[int(round(center_of_mass[0])),int(round(center_of_mass[1])),2] = 1
+        disp_field[:, :, 2][mask>0] = 1
+        #center_point = cv2.circle(disp_field[:, :, 2].astype(np.uint8),
+        #                          (int(round(center_of_mass[1])),int(round(center_of_mass[0]))), 2, 2, -1)
+        #disp_field[:, :, 2] = center_point.astype(np.float32)
+        disp_field[:, :, 2][np.where(strength>0.9)] = 2
         if np.isnan(strength).any():
             raise Exception("NaN!")
         for i , mask_file in enumerate(mask_list[1:]):
@@ -127,12 +133,18 @@ def create_watershed_direction_and_energy_for_subdataset(subdataset_dir):
             current_offset_field[:, :, 1] = np.expand_dims(center_of_mass[1] - np.arange(0, cols), axis=0)
             strength = (np.sqrt(current_offset_field[:, :, 0]**2 + current_offset_field[:, :, 1]**2)) + 1e-10
             disp_field[:, :, 0:2][mask > 0] = (current_offset_field[:, :, 0:2]/strength[:,:,None])[mask > 0]
-            strength = -strength[mask>0] + np.max(strength[mask>0])
+            strength = -strength + np.max(strength[mask>0])
             strength = strength / (np.max(strength) + 1e-10)
-            disp_field[:, :, 2][mask>0] = strength
-            disp_field[:, :, 3][mask>0] = 1
+            #disp_field[:, :, 2][mask>0] = strength[mask>0]
+            #disp_field[int(round(center_of_mass[0])),int(round(center_of_mass[1])),2] = 1
+            disp_field[:, :, 2][mask>0] = 1
+            #center_point = cv2.circle(disp_field[:, :, 2].astype(np.uint8),
+            #              (int(round(center_of_mass[1])),int(round(center_of_mass[0]))), 2, 2, -1)
+            #disp_field[:, :, 2] = center_point.astype(np.float32)
+            disp_field[:, :, 2][np.where(strength>0.9)] = 2
             if np.isnan(strength).any():
                 raise Exception("NaN!")
+        #disp_field[:,:,2] = cv2.dilate(disp_field[:,:,2], kernel, iterations=2) 
         create_folder(os.path.join(subdataset_dir, img_name, 'watershed_label'))
         np.save('{:s}/{:s}_watershed_label.npy'.format(os.path.join(subdataset_dir, img_name, 'watershed_label'), img_name), disp_field.astype(np.float32))
 
@@ -173,8 +185,8 @@ def main(args):
         create_folder(data_split_dir + '/' + dataset + '/All')
         #split_dataset(dataset_dir, dataset)
         #create_labels_instance_for_dataset(dataset_dir)
-        create_three_cls_label_for_dataset(dataset_dir)
-        #create_watershed_direction_and_energy_for_dataset(dataset_dir)
+        #create_three_cls_label_for_dataset(dataset_dir)
+        create_watershed_direction_and_energy_for_dataset(dataset_dir)
 
 def _parse_args():
     parser = argparse.ArgumentParser(description="The data preprocessing.")

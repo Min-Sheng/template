@@ -244,40 +244,47 @@ class RandomResize(BaseTransform):
             area = h* w
             random_scale = random.uniform(*self.scale)
             target_area = random_scale * area
-
-            log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
-            random_ratio = math.exp(random.uniform(*log_ratio))
-            h = int(round(math.sqrt(target_area * random_ratio)))
-            w = int(round(math.sqrt(target_area * random_ratio)))
+            
+            if self.ratio[0] != 1.0 and self.ratio[1] != 1.0:
+                resize_flag=True
+                log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
+                random_ratio = math.exp(random.uniform(*log_ratio))
+                h = int(round(math.sqrt(target_area * random_ratio)))
+                w = int(round(math.sqrt(target_area * random_ratio)))
+            else:
+                resize_flag=False
             if label_type!='watershed_label':
                 if interpolation_orders:
                     imgs = tuple(self._rescale(img, random_scale, order, multichannel=True).astype(img.dtype) for img, order in zip(imgs, interpolation_orders))
-                    if label_type != '3cls_label':
+                    if resize_flag:
                         imgs = tuple(self._resize(img, (h, w), order).astype(img.dtype) for img, order in zip(imgs, interpolation_orders))
                 else:
                     imgs = tuple(self._rescale(img, random_scale, multichannel=True) for img in imgs)
-                    if label_type != '3cls_label':
+                    if resize_flag:
                         imgs = tuple(self._resize(img, (h, w)) for img in imgs)
             else: 
                 if interpolation_orders:
                     new_imgs = []
                     for i, (img, order) in enumerate(zip(imgs, interpolation_orders)):
                         if i == 2 or i == 3:
-                            img_1 = self._rescale(img[...,0:3], random_scale, order=1, multichannel=True).astype(img.dtype)
-                            img_2 = self._rescale(img[...,3], random_scale, order=order, multichannel=False).astype(img.dtype)
+                            img_1 = self._rescale(img[...,0:2], random_scale, order=1, multichannel=True).astype(img.dtype)
+                            img_2 = self._rescale(img[...,2], random_scale, order=order, multichannel=False).astype(img.dtype)
                             img = np.dstack((img_1, img_2[...,None]))
-                            img_1 = self._resize(img[...,0:3], (h,w), order=1).astype(img.dtype)
-                            img_2 = self._resize(img[...,3], (h,w), order=order).astype(img.dtype)
-                            img = np.dstack((img_1, img_2[...,None]))
+                            if resize_flag:
+                                img_1 = self._resize(img[...,0:2], (h,w), order=1).astype(img.dtype)
+                                img_2 = self._resize(img[...,2], (h,w), order=order).astype(img.dtype)
+                                img = np.dstack((img_1, img_2[...,None]))
                             new_imgs.append(img)
                         else:
                             img = self._rescale(img, random_scale, order, multichannel=True).astype(img.dtype) 
-                            img = self._resize(img, (h, w), order).astype(img.dtype) 
+                            if resize_flag:
+                                img = self._resize(img, (h, w), order).astype(img.dtype) 
                             new_imgs.append(img)
                     imgs = tuple(new_imgs)
                 else:
                     imgs = tuple(self._rescale(img, random_scale, multichannel=True) for img in imgs)
-                    imgs = tuple(self._resize(img, (h, w)) for img in imgs)
+                    if resize_flag:
+                        imgs = tuple(self._resize(img, (h, w)) for img in imgs)
         return imgs
 
 class RandomRotation(BaseTransform):
@@ -322,36 +329,36 @@ class RandomRotation(BaseTransform):
             angle = random.uniform(*self.degrees)
             if label_type != 'watershed_label':
                 if interpolation_orders:
-                    imgs = tuple(self._rotate(img, angle, order=order, resize=True).astype(img.dtype) for img, order in zip(imgs, interpolation_orders))
+                    imgs = tuple(self._rotate(img, angle, order=order, resize=False).astype(img.dtype) for img, order in zip(imgs, interpolation_orders))
                 else:
-                    imgs = tuple(self._rotate(img, angle, resize=True) for img in imgs)
+                    imgs = tuple(self._rotate(img, angle, resize=False) for img in imgs)
             else:
                 if interpolation_orders:
                     new_imgs = []
                     for i, (img, order) in enumerate(zip(imgs, interpolation_orders)):
                         if i == 2 or i == 3:
-                            img_1 = self._rotate(img[...,0:3], angle, order=1, resize=True).astype(img.dtype)
+                            img_1 = self._rotate(img[...,0:2], angle, order=1, resize=False).astype(img.dtype)
                             img_1[...,0] = img_1[...,0] * np.cos(angle * np.pi / 180) - img_1[...,1] * np.sin(angle * np.pi / 180)
                             img_1[...,1] = img_1[...,0] * np.sin(angle * np.pi / 180) + img_1[...,1] * np.cos(angle * np.pi / 180)
-                            img_2 = self._rotate(img[...,3], angle, order=order, resize=True).astype(img.dtype)
+                            img_2 = self._rotate(img[...,2], angle, order=order, resize=False).astype(img.dtype)
                             img = np.dstack((img_1, img_2[...,None]))
                             new_imgs.append(img)
                         else:
-                            img = self._rotate(img, angle, order=order, resize=True).astype(img.dtype)
+                            img = self._rotate(img, angle, order=order, resize=False).astype(img.dtype)
                             new_imgs.append(img)
                     imgs=tuple(new_imgs)
                 else:
                     new_imgs = []
                     for i, img in enumerate(imgs):
                         if i == 2 or i == 3:
-                            img_1 = self._rotate(img[...,0:3], angle, resize=True).astype(img.dtype)
+                            img_1 = self._rotate(img[...,0:2], angle, resize=False).astype(img.dtype)
                             img_1[...,0] = img_1[...,0] * np.cos(angle * np.pi / 180) - img_1[...,1] * np.sin(angle * np.pi / 180)
                             img_1[...,1] = img_1[...,0] * np.sin(angle * np.pi / 180) + img_1[...,1] * np.cos(angle * np.pi / 180)
-                            img_2 = self._rotate(img[...,3], angle, resize=True).astype(img.dtype)
+                            img_2 = self._rotate(img[...,2], angle, resize=False).astype(img.dtype)
                             img = np.dstack((img_1, img_2[...,None]))
                             new_imgs.append(img)
                         else:
-                            img = self._rotate(img, angle, resize=True).astype(img.dtype)
+                            img = self._rotate(img, angle, resize=False).astype(img.dtype)
                             new_imgs.append(img)
                     imgs=tuple(new_imgs)
         return imgs
@@ -381,13 +388,13 @@ class RandomHorizontalFlip(BaseTransform):
             if label_type == 'watershed_label':
                 new_imgs=[]
                 for i, img in enumerate(imgs):
-                    img = np.flip(img , 1)
+                    img = np.flip(img , 1).copy()
                     if i == 2 or i == 3:
                         img[...,1] = -img[...,1]
                     new_imgs.append(img)
                 imgs=tuple(new_imgs)
             else:
-                imgs = tuple([np.flip(img, 1) for img in imgs])
+                imgs = tuple([np.flip(img, 1).copy() for img in imgs])
         return imgs
     
     
@@ -416,13 +423,13 @@ class RandomVerticalFlip(BaseTransform):
             if label_type == 'watershed_label':
                 new_imgs=[]
                 for i, img in enumerate(imgs):
-                    img = np.flip(img , 0)
+                    img = np.flip(img , 0).copy()
                     if i == 2 or i == 3:
                         img[...,0] = -img[...,0]
                     new_imgs.append(img)
                 imgs=tuple(new_imgs)
             else:
-                imgs = tuple([np.flip(img, 0) for img in imgs])
+                imgs = tuple([np.flip(img, 0).copy() for img in imgs])
         return imgs
 
 class RandomCrop(BaseTransform):
