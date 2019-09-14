@@ -82,7 +82,7 @@ class _UpBlock(nn.Module):
 class ResNet50UNet(BaseNet):
     depth = 6
 
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, label_type='3cls_label'):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -111,6 +111,7 @@ class ResNet50UNet(BaseNet):
         
         self.backbone = self.down_blocks
         self.newly_added = nn.ModuleList([self.bridge, self.up_blocks, self.out])
+        self.label_type = label_type
         
     def forward(self, x, with_output_feature_map=False):
         pre_pools = dict()
@@ -133,6 +134,16 @@ class ResNet50UNet(BaseNet):
         output_feature_map = x
         x = self.out(x)
         del pre_pools
+        
+        if self.label_type=='instance':
+            x = torch.softmax(x, dim=1)
+        elif self.label_type=='3cls_label':
+            x = torch.softmax(x, dim=1)
+        elif self.label_type=='watershed_label':
+            x_1 = torch.tanh(x[:,0:2,:,:])
+            print(x_1.max(), x_1.min())
+            x_2 = torch.softmax(x[:,2:5,:,:], dim=1)
+            x = torch.cat([x_1, x_2], 1)
         if with_output_feature_map:
             return x, output_feature_map
         else:
