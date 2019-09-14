@@ -52,7 +52,9 @@ def main(args):
         train_dataloader = _get_instance(src.data.dataloader, config.dataloader, train_dataset)
         config.dataloader.kwargs.update(batch_size=valid_batch_size)
         valid_dataloader = _get_instance(src.data.dataloader, config.dataloader, valid_dataset)
-
+        
+        label_type = config.dataset.kwargs.pop('label_type')
+        config.net.kwargs.update(label_type=label_type) 
         logging.info('Create the network architecture.')
         net = _get_instance(src.model.nets, config.net)
 
@@ -78,7 +80,6 @@ def main(args):
 
         logging.info('Create the logger.')
         config.logger.kwargs.update(log_dir=saved_dir / 'log', net=net, dummy_input=torch.randn(tuple(config.logger.kwargs.dummy_input))) 
-        label_type = config.dataset.kwargs.pop('label_type')
         config.logger.kwargs.update(label_type=label_type) 
         logger = _get_instance(src.callbacks.loggers, config.logger)
 
@@ -144,12 +145,14 @@ def main(args):
         metric_fns = [_get_instance(src.model.metrics, config_metric) for config_metric in config.metrics]
 
         logging.info('Create the predictor.')
+        label_type = config.dataset.kwargs.pop('label_type')
         kwargs = {'device': device,
                   'test_dataloader': test_dataloader,
                   'net': net,
                   'loss_fns': loss_fns,
                   'loss_weights': loss_weights,
-                  'metric_fns': metric_fns}
+                  'metric_fns': metric_fns,
+                  'label_type': label_type}
         config.predictor.kwargs.update(kwargs)
         predictor = _get_instance(src.runner.predictors, config.predictor)
 
