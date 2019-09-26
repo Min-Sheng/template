@@ -13,14 +13,14 @@ class BasePredictor:
         loss_weights (list of float): The corresponding weights of loss functions.
         metric_fns (list of torch.nn.Module): The metric functions.
     """
-    def __init__(self, device, test_dataloader, net, loss_fns, loss_weights, metric_fns):
+    def __init__(self, device, test_dataloader, net, loss_fns, loss_weights, metric_fns, label_type):
         self.device = device
         self.test_dataloader = test_dataloader
         self.net = net.to(device)
         self.loss_fns = [loss_fn.to(device) for loss_fn in loss_fns]
         self.loss_weights = torch.tensor(loss_weights, dtype=torch.float, device=device)
         self.metric_fns = [metric_fn.to(device) for metric_fn in metric_fns]
-
+        self.label_type = label_type
     def predict(self):
         """The testing process.
         """
@@ -33,12 +33,12 @@ class BasePredictor:
         count = 0
         for batch in trange:
             batch = self._allocate_data(batch)
-            inputs, targets = self._get_inputs_targets(batch)
+            inputs, targetsi1, targets2 = self._get_inputs_targets(batch)
             with torch.no_grad():
                 outputs = self.net(inputs)
-                losses = self._compute_losses(outputs, targets)
+                losses = self._compute_losses(outputs, targets1)
                 loss = (torch.stack(losses) * self.loss_weights).sum()
-                metrics =  self._compute_metrics(outputs, targets)
+                metrics =  self._compute_metrics(outputs, targets2)
 
             batch_size = self.test_dataloader.batch_size
             self._update_log(log, batch_size, loss, losses, metrics)
