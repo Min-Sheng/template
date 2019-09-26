@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 from tqdm import tqdm
 
 from src.runner.trainers.base_trainer import BaseTrainer
@@ -57,6 +56,10 @@ class NucleiInitialSegTrainer(BaseTrainer):
                 log['Dice'] = 0
                 for i in range(self.net.out_channels):
                     log[f'Dice_{i}'] = 0
+            elif metric.__class__.__name__ == 'CenterMaskDice':
+                log['CenterMaskDice'] = 0
+                for i in range(self.net.out_channels-2):
+                    log[f'CenterMaskDice_{i}'] = 0
             else:
                 log[metric.__class__.__name__] = 0
         return log
@@ -78,5 +81,9 @@ class NucleiInitialSegTrainer(BaseTrainer):
                 log['Dice'] += _metric.mean().item() * batch_size
                 for i, class_score in enumerate(_metric):
                     log[f'Dice_{i}'] += class_score.item() * batch_size
+            elif metric.__class__.__name__ == 'CenterMaskDice':
+                log['CenterMaskDice'] += _metric.mean().item() * batch_size
+                for i, class_score in enumerate(_metric):
+                    log[f'CenterMaskDice_{i}'] += class_score.item() * batch_size
             else:
                 log[metric.__class__.__name__] += _metric.item() * batch_size
