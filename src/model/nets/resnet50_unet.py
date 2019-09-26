@@ -141,7 +141,6 @@ class ResNet50UNet(BaseNet):
             x = torch.softmax(x, dim=1)
         elif self.label_type=='watershed_label':
             x_1 = torch.tanh(x[:,0:2,:,:])
-            print(x_1.max(), x_1.min())
             x_2 = torch.softmax(x[:,2:5,:,:], dim=1)
             x = torch.cat([x_1, x_2], 1)
         if with_output_feature_map:
