@@ -9,7 +9,7 @@ dataset:
         data_split_list: '/home/vincentwu-cmlab/template/data_split/DSB2018plus/All/train_val_test.json'
         label_type: 'watershed_label' #choices: ['instance', '3cls_label', 'watershed_label']
         label_proportion: 0.5
-        valid_transforms:
+        transforms:
             - name: 'Normalize'
               kwargs:
                   means: [0.485, 0.456, 0.406]
@@ -44,3 +44,5 @@ predictor:
     name: 'NucleiInitialSegPredictor'
     kwargs:
         device: 'cuda:0'
+        saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_watershed_label_resnet50_all'
+        exported: true
