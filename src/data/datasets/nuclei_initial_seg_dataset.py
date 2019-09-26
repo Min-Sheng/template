@@ -54,11 +54,13 @@ class NucleiInitialSegDataset(BaseDataset):
         label_proportion: The proportion of the dropped label.
         random_seed: The random seed for the label dropping.
     """
-    def __init__(self, data_split_list, train_transforms, valid_transforms, label_type='3cls_label', label_proportion=0.5, random_seed=0, **kwargs):
+    def __init__(self, data_split_list, train_preprocessings, valid_preprocessings, transforms, augments=None, label_type='3cls_label', label_proportion=0.5, random_seed=0, **kwargs):
         super().__init__(**kwargs)
         self.data_split_list = data_split_list
-        self.train_transforms = compose(train_transforms)
-        self.valid_transforms = compose(valid_transforms)
+        self.train_preprocessings = compose(train_preprocessings)
+        self.valid_preprocessings = compose(valid_preprocessings)
+        self.transforms = compose(transforms)
+        self.augments = compose(augments)
         self.label_type = label_type
         self.label_proportion = label_proportion
         self.random_seed = random_seed
@@ -118,7 +120,7 @@ class NucleiInitialSegDataset(BaseDataset):
         elif self.label_type=='watershed_label':
             instance_label = np.load(get_instance_label_path(name, self.data_dir))
             watershed_label = np.load(get_watershed_label_path(name, self.data_dir))
-
+            
             np.random.seed(self.random_seed)
             label_idxs = np.unique(instance_label)
             np.random.shuffle(label_idxs[1:])
@@ -134,11 +136,14 @@ class NucleiInitialSegDataset(BaseDataset):
             full_label = watershed_label.astype(np.float32)
 
             label_dtype = torch.float
-        if self.type == 'train':
-            ori_img, img ,semi_label, full_label = self.train_transforms(ori_img, img, semi_label, full_label, interpolation_orders = [1, 1, 0, 0] ,normalize_tags=[False, True, False, False], dtypes=[torch.float, torch.float, label_dtype, label_dtype], label_type = self.label_type)
+        
+        if self.type == 'train':            
+            ori_img, img ,semi_label, full_label = self.train_preprocessings(ori_img, img, semi_label, full_label, normalize_tags=[False, True, False, False])
+            ori_img, img ,semi_label, full_label = self.augments(ori_img, img, semi_label, full_label, interpolation_orders = [1, 1, 0, 0], label_type = self.label_type)
         elif self.type == 'val':
-            ori_img, img ,semi_label, full_label = self.valid_transforms(ori_img, img, semi_label, full_label, interpolation_orders = [1, 1, 0, 0], normalize_tags=[False, True, False, False], dtypes=[torch.float, torch.float, label_dtype, label_dtype], label_type = self.label_type)
+            ori_img, img ,semi_label, full_label = self.valid_preprocessings(ori_img, img, semi_label, full_label, normalize_tags=[False, True, False, False])
 
+        ori_img, img ,semi_label, full_label = self.transforms(ori_img, img ,semi_label, full_label, dtypes=[torch.float, torch.float, label_dtype, label_dtype])
         ori_img, img, semi_label, full_label = ori_img.permute(2, 0, 1).contiguous(), img.permute(2, 0, 1).contiguous(), semi_label.permute(2, 0, 1).contiguous(), full_label.permute(2, 0, 1).contiguous()
         
         return {'name': name, 'ori_image': ori_img, 'image':img, 'semi_label': semi_label, 'full_label': full_label}

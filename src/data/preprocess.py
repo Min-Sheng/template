@@ -121,7 +121,7 @@ def create_watershed_direction_and_energy_for_subdataset(subdataset_dir):
         #center_point = cv2.circle(disp_field[:, :, 2].astype(np.uint8),
         #                          (int(round(center_of_mass[1])),int(round(center_of_mass[0]))), 2, 2, -1)
         #disp_field[:, :, 2] = center_point.astype(np.float32)
-        disp_field[:, :, 2][np.where(strength>0.9)] = 2
+        disp_field[:, :, 2][np.where(strength>0.85)] = 2
         if np.isnan(strength).any():
             raise Exception("NaN!")
         for i , mask_file in enumerate(mask_list[1:]):
@@ -141,7 +141,7 @@ def create_watershed_direction_and_energy_for_subdataset(subdataset_dir):
             #center_point = cv2.circle(disp_field[:, :, 2].astype(np.uint8),
             #              (int(round(center_of_mass[1])),int(round(center_of_mass[0]))), 2, 2, -1)
             #disp_field[:, :, 2] = center_point.astype(np.float32)
-            disp_field[:, :, 2][np.where(strength>0.9)] = 2
+            disp_field[:, :, 2][np.where(strength>0.85)] = 2
             if np.isnan(strength).any():
                 raise Exception("NaN!")
         #disp_field[:,:,2] = cv2.dilate(disp_field[:,:,2], kernel, iterations=2) 

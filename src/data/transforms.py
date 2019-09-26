@@ -89,7 +89,10 @@ class ToTensor(BaseTransform):
         """
         if not all(isinstance(img, np.ndarray) for img in imgs):
             raise TypeError('All of the images should be numpy.ndarray.')
-
+        #for img in imgs:
+        #    if not isinstance(img, np.ndarray):
+        #        print(img)
+        #        raise TypeError('All of the images should be numpy.ndarray.')
         if dtypes:
             if not all(isinstance(dtype, torch.dtype) for dtype in dtypes):
                 raise TypeError('All of the dtypes should be torch.dtype.')
