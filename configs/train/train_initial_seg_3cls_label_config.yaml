@@ -1,21 +1,24 @@
 main:
     random_seed: 0
     saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_3cls_label_dice_resnet50_all'
-    #saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_initial_seg_watershed_label_resnet50/'
-    #loaded_path: 'path/to/checkpoint.pth' # The loaded_path is not necessary.
-
+    
 dataset:
     name: 'NucleiInitialSegDataset'
     kwargs:
         data_dir: '/home/vincentwu-cmlab/cell_data/DSB2018plus'
         data_split_list: '/home/vincentwu-cmlab/template/data_split/DSB2018plus/All/train_val_test.json'
-        label_type: '3cls_label' #choices: ['instance', '3cls_label', 'watershed_label']
+        label_type: '3cls_label'
         label_proportion: 0.5
         train_preprocessings:
             - name: 'Normalize'
               kwargs:
                   means: [0.485, 0.456, 0.406]
                   stds: [0.229, 0.224, 0.225]
+            #- name: 'RandomResize'
+            #  kwargs:
+            #      scale: [0.5, 1.5]
+            #      ratio: [1.0, 1.0]
+            #      prob: 0.25
             - name: 'RandomCrop'
               kwargs:
                   size: [256, 256]
@@ -56,22 +59,11 @@ net:
         out_channels: 3
 
 losses:
-    #- name: 'MyBinaryCrossEntropyLoss'
-    #  weight: 0.5
-    #- name: 'JaccardLoss'
-    #  weight: 0.5
     - name: 'DiceLoss'
       weight: 1.0
-    #- name: 'AngleLoss'
-    #  weight: 0.2
-    #- name: 'EnergyL2Loss'
-    #  weight: 0.2
-    #- name: 'BinaryDiceLoss'
-    #  weight: 0.8
 
 metrics:
     - name: 'Dice'
-    #- name: 'Dummy'
 
 optimizer:
     name: 'Adam'
@@ -80,12 +72,11 @@ optimizer:
         weight_decay: 0
         amsgrad: false
 
-# The lr_scheduler section is not necessary.
-lr_scheduler:
-    name: 'StepLR'
-    kwargs:
-        step_size: 30
-        gamma: 0.1
+#lr_scheduler:
+#    name: 'StepLR'
+#    kwargs:
+#        step_size: 30
+#        gamma: 0.1
 
 logger:
     name: 'NucleiInitialSegLogger'
@@ -95,8 +86,8 @@ logger:
 monitor:
     name: 'Monitor'
     kwargs:
-        mode: 'max'
-        target: 'Dice'
+        mode: 'min'
+        target: 'DiceLoss'
         saved_freq: 10
         early_stop: 0
 
