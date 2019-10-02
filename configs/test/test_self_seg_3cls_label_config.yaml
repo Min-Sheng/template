@@ -1,0 +1,35 @@
+main:
+    saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_self_seg_3cls_label_dice_resnet50_all2'
+    loaded_path: '/home/vincentwu-cmlab/template/models/nuclei_self_seg_3cls_label_dice_resnet50_all2/checkpoints/model_200.pth' # The loaded_path is necessary.
+
+net:
+    name: 'ResNet50UNet'
+    kwargs:
+        in_channels: 3
+        out_channels: 3
+
+losses:
+    - name: 'DiceLoss'
+      weight: 1.0
+
+metrics:
+    - name: 'Dice'
+    - name: 'AggreagteJaccardIndex'
+
+predictor:
+    name: 'NucleiSelfSegPredictor'
+    kwargs:
+        data_dir: '/home/vincentwu-cmlab/cell_data/DSB2018plus'
+        data_split_list: '/home/vincentwu-cmlab/template/data_split/DSB2018plus/All/train_val_test.json'
+        label_type: '3cls_label' #choices: ['instance', '3cls_label', 'watershed_label']
+        transforms:
+            - name: 'Normalize'
+              kwargs:
+                  means: [0.485, 0.456, 0.406]
+                  stds: [0.229, 0.224, 0.225]
+            - name: 'ToTensor'
+        sample_size: [256, 256]
+        shift: [128, 128]
+        device: 'cuda:0'
+        saved_dir: '/home/vincentwu-cmlab/template/models/nuclei_self_seg_3cls_label_dice_resnet50_all2'
+        exported: true
