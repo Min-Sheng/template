@@ -84,7 +84,7 @@ class NucleiSelfSegDataset(BaseDataset):
             np.random.seed(self.random_seed)
             label_idxs = np.unique(instance_label)
             np.random.shuffle(label_idxs[1:])
-            random_drop_idxs = label_idxs[:int(len(label_idxs)*self.label_proportion)]
+            random_drop_idxs = label_idxs[:int(len(label_idxs)*(1-self.label_proportion))]
             
             semi_label = instance_label.copy()
             semi_label[np.isin(semi_label, random_drop_idxs)] = 0
@@ -93,14 +93,14 @@ class NucleiSelfSegDataset(BaseDataset):
             
             label_dtype = torch.long
         elif self.label_type=='3cls_label':
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+            #kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
             instance_label = np.load(get_instance_label_path(name, self.data_dir))
             tricls_label = np.load(get_3cls_label_path(name, self.data_dir))
             np.random.seed(self.random_seed)
             label_idxs = np.unique(instance_label)
             np.random.shuffle(label_idxs[1:])
-            random_drop_idxs = label_idxs[:int(len(label_idxs)*self.label_proportion)]
-            random_remain_idxs = label_idxs[int(len(label_idxs)*0.5):]
+            random_drop_idxs = label_idxs[:int(len(label_idxs)*(1-self.label_proportion))]
+            random_remain_idxs = label_idxs[int(len(label_idxs)*(1-self.label_proportion)):]
             
             mask = instance_label.copy()
             mask_dropped = instance_label.copy()
@@ -111,7 +111,7 @@ class NucleiSelfSegDataset(BaseDataset):
             
             mask = (mask > 0).astype(np.uint8)
             mask_dropped = (mask_dropped > 0 ).astype(np.uint8)
-            mask = cv2.dilate(mask, kernel, iterations=1)
+            #mask = cv2.dilate(mask, kernel, iterations=1)
 
             #semi_label = to_one_hot(semi_label * mask).astype(np.int32)
             #full_label = to_one_hot(tricls_label).astype(np.int32)
@@ -128,7 +128,7 @@ class NucleiSelfSegDataset(BaseDataset):
             np.random.seed(self.random_seed)
             label_idxs = np.unique(instance_label)
             np.random.shuffle(label_idxs[1:])
-            random_drop_idxs = label_idxs[:int(len(label_idxs)*self.label_proportion)]
+            random_drop_idxs = label_idxs[:int(len(label_idxs)*(1-self.label_proportion))]
             
             mask = instance_label.copy()
             semi_label = watershed_label.copy()

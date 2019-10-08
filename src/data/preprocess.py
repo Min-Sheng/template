@@ -9,6 +9,7 @@ import numpy as np
 import cv2
 import scipy.ndimage.morphology as ndi_morph
 import scipy.ndimage.measurements as measurements
+from scipy.ndimage.morphology import distance_transform_edt as dt
 import math
 
 def create_folder(folder):
@@ -71,7 +72,7 @@ def create_three_cls_label_for_subdataset(subdataset_dir):
         print(img_name)
         print(len(mask_list))
         mask = imageio.imread(mask_list[0])
-        contour = cv2.dilate(mask, kernel, iterations=1) - mask
+        contour =  mask - cv2.erode(mask, kernel, iterations=1)
         masks_w_e = mask.copy()
         instance_mask = mask.copy()
         masks_w_e[np.where(mask)] = 2
@@ -79,7 +80,7 @@ def create_three_cls_label_for_subdataset(subdataset_dir):
         instance_mask[np.where(mask)] = 1
         for i , mask_file in enumerate(mask_list[1:]):
             mask = imageio.imread(mask_file)
-            contour = cv2.dilate(mask, kernel, iterations=1) - mask
+            contour = mask - cv2.erode(mask, kernel, iterations=1)
             masks_w_e[np.where(mask)]=2
             masks_w_e[np.where(contour)]=1
             instance_mask[np.where(mask)] = (i+2)
@@ -113,17 +114,30 @@ def create_watershed_direction_and_energy_for_subdataset(subdataset_dir):
         current_offset_field[:, :, 1] = np.expand_dims(center_of_mass[1] - np.arange(0, cols), axis=0)
         strength = (np.sqrt(current_offset_field[:, :, 0]**2 + current_offset_field[:, :, 1]**2)) + 1e-10
         disp_field[:, :, 0:2][mask > 0] = (current_offset_field[:, :, 0:2]/strength[:,:,None])[mask > 0]
-        strength = -strength + np.max(strength[mask>0])
-        strength = strength / (np.max(strength) + 1e-10)
+
+        edt = dt(mask, return_distances=True, return_indices=False)
+        #edt, inds = dt(mask, return_distances=True, return_indices=True)
+        #border_vector = np.array([
+        #    np.expand_dims(np.arange(0, rows), axis=1) - inds[0],
+        #    np.expand_dims(np.arange(0, cols), axis=0) - inds[1]])
+        #border_vector_norm = border_vector / (np.linalg.norm(border_vector, axis=0, keepdims=True) + 1e-5)
+        #disp_field[:, :, 0][mask > 0] = border_vector_norm[0][mask > 0]
+        #disp_field[:, :, 1][mask > 0] = border_vector_norm[1][mask > 0]
+        edt = edt / (np.max(edt)+ 1e-10)
+        disp_field[:, :, 2][mask > 0] = 1
+        disp_field[:, :, 2][np.where(edt > 0.5)] = 2
+
+        #strength = -strength + np.max(strength[mask>0])
+        #strength = strength / (np.max(strength) + 1e-10)
         #disp_field[:, :, 2][mask>0] = strength[mask>0]
         #disp_field[int(round(center_of_mass[0])),int(round(center_of_mass[1])),2] = 1
-        disp_field[:, :, 2][mask>0] = 1
-        #center_point = cv2.circle(disp_field[:, :, 2].astype(np.uint8),
-        #                          (int(round(center_of_mass[1])),int(round(center_of_mass[0]))), 2, 2, -1)
-        #disp_field[:, :, 2] = center_point.astype(np.float32)
-        disp_field[:, :, 2][np.where(strength>0.85)] = 2
-        if np.isnan(strength).any():
-            raise Exception("NaN!")
+        #disp_field[:, :, 2][mask>0] = 1
+        ##center_point = cv2.circle(disp_field[:, :, 2].astype(np.uint8),
+        ##                          (int(round(center_of_mass[1])),int(round(center_of_mass[0]))), 2, 2, -1)
+        ##disp_field[:, :, 2] = center_point.astype(np.float32)
+        #disp_field[:, :, 2][np.where(strength>0.85)] = 2
+        #if np.isnan(strength).any():
+        #    raise Exception("NaN!")
         for i , mask_file in enumerate(mask_list[1:]):
             mask = imageio.imread(mask_file)
             rows, cols = mask.shape
@@ -133,18 +147,31 @@ def create_watershed_direction_and_energy_for_subdataset(subdataset_dir):
             current_offset_field[:, :, 1] = np.expand_dims(center_of_mass[1] - np.arange(0, cols), axis=0)
             strength = (np.sqrt(current_offset_field[:, :, 0]**2 + current_offset_field[:, :, 1]**2)) + 1e-10
             disp_field[:, :, 0:2][mask > 0] = (current_offset_field[:, :, 0:2]/strength[:,:,None])[mask > 0]
-            strength = -strength + np.max(strength[mask>0])
-            strength = strength / (np.max(strength) + 1e-10)
-            #disp_field[:, :, 2][mask>0] = strength[mask>0]
-            #disp_field[int(round(center_of_mass[0])),int(round(center_of_mass[1])),2] = 1
-            disp_field[:, :, 2][mask>0] = 1
-            #center_point = cv2.circle(disp_field[:, :, 2].astype(np.uint8),
-            #              (int(round(center_of_mass[1])),int(round(center_of_mass[0]))), 2, 2, -1)
-            #disp_field[:, :, 2] = center_point.astype(np.float32)
-            disp_field[:, :, 2][np.where(strength>0.85)] = 2
-            if np.isnan(strength).any():
-                raise Exception("NaN!")
-        #disp_field[:,:,2] = cv2.dilate(disp_field[:,:,2], kernel, iterations=2) 
+            
+            edt = dt(mask, return_distances=True, return_indices=False)
+            #edt, inds = dt(mask, return_distances=True, return_indices=True)
+            #border_vector = np.array([
+            #    np.expand_dims(np.arange(0, rows), axis=1) - inds[0],
+            #    np.expand_dims(np.arange(0, cols), axis=0) - inds[1]])
+            #border_vector_norm = border_vector / (np.linalg.norm(border_vector, axis=0, keepdims=True) + 1e-10)
+            #disp_field[:, :, 0][mask > 0] = border_vector_norm[0][mask > 0]
+            #disp_field[:, :, 1][mask > 0] = border_vector_norm[1][mask > 0]
+            edt = edt / (np.max(edt)+ 1e-10)
+            disp_field[:, :, 2][mask > 0] = 1
+            disp_field[:, :, 2][np.where(edt > 0.5)] = 2
+
+            #strength = -strength + np.max(strength[mask>0])
+            #strength = strength / (np.max(strength) + 1e-10)
+            ##disp_field[:, :, 2][mask>0] = strength[mask>0]
+            ##disp_field[int(round(center_of_mass[0])),int(round(center_of_mass[1])),2] = 1
+            #disp_field[:, :, 2][mask>0] = 1
+            ##center_point = cv2.circle(disp_field[:, :, 2].astype(np.uint8),
+            ##              (int(round(center_of_mass[1])),int(round(center_of_mass[0]))), 2, 2, -1)
+            ##disp_field[:, :, 2] = center_point.astype(np.float32)
+            #disp_field[:, :, 2][np.where(strength>0.85)] = 2
+            #if np.isnan(strength).any():
+            #    raise Exception("NaN!")
+        ##disp_field[:,:,2] = cv2.dilate(disp_field[:,:,2], kernel, iterations=2) 
         create_folder(os.path.join(subdataset_dir, img_name, 'watershed_label'))
         np.save('{:s}/{:s}_watershed_label.npy'.format(os.path.join(subdataset_dir, img_name, 'watershed_label'), img_name), disp_field.astype(np.float32))
 
