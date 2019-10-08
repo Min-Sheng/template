@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import numexpr as ne
+from sklearn.metrics import f1_score
 
 class Dice(nn.Module):
     """The Dice score.
@@ -88,7 +89,7 @@ class AggreagteJaccardIndex(nn.Module):
         return (intersect, union)
     
     # fast version of Aggregated Jaccrd Index
-    def agg_jc_index(self, mask, pred):
+    def agg_jc_index(self, pred, mask):
         """Calculate aggregated jaccard index for prediction & GT mask
         reference paper here: https://www.dropbox.com/s/j3154xgkkpkri9w/IEEE_TMI_NuceliSegmentation.pdf?dl=0
 
@@ -103,6 +104,8 @@ class AggreagteJaccardIndex(nn.Module):
         u = 0 # count union
         #tqdm.monitor_interval = 0 # disable tqdm monitor to prevent warning message
         pred_instance = pred.max() # predcition instance number
+        if pred_instance==0:
+            return 0
         pred_mark_used = [] # mask used
         pred_mark_isused = np.zeros((pred_instance+1), dtype=bool)
         
@@ -115,6 +118,7 @@ class AggreagteJaccardIndex(nn.Module):
             #iou_list = []
             
             intersect_list, union_list = zip(*[self.compute_intersect_union(m, pred, pred_mark_isused, idx_pred) for idx_pred in range(1, pred_instance+1)])
+            
             #print(intersect_list)
             """
             for idx_pred in range(1, pred_instance+1):
@@ -149,4 +153,28 @@ class AggreagteJaccardIndex(nn.Module):
         #print (c / u)
         return (c / u)
     def forward(self, output, target):
-        return torch.Tensor([self.agg_jc_index(target, output)])
+        """
+        Args:
+            output (numpy.array) (H, W, K)
+            target (numpy.array) (H, W)
+        Returns:
+            metric (torch.Tensor): The dice scores for each class.
+        """
+        return torch.Tensor([self.agg_jc_index(output, target)])
+
+class F1Score(nn.Module):
+    """The F1 score.
+    """
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, output, target):
+        """
+        Args:
+            output (numpy.array) (H, W)
+            target (numpy.array) (H, W)
+        Returns:
+            metric (torch.Tensor): The dice scores for each class.
+        """
+        
+        return f1_score((target>0).flatten(), (output>0).flatten())
