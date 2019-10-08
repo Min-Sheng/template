@@ -54,9 +54,9 @@ class NucleiSelfSegTrainer(object):
                 # Do training and validation.
                 logging.info(f'Round {rnd+1}.')
                 logging.info(f'Epoch {epoch+1}.')
-                train_log, train_batch, pseudo_label, train_outputs = self._run_epoch('training')
+                train_log, train_batch, train_pseudo_label, train_outputs = self._run_epoch('training')
                 logging.info(f'Train log: {train_log}.')
-                valid_log, valid_batch, valid_outputs = self._run_epoch('validation')
+                valid_log, valid_batch, valid_pseudo_label, valid_outputs = self._run_epoch('validation')
                 logging.info(f'Valid log: {valid_log}.')
 
                 # Adjust the learning rate.
@@ -68,8 +68,8 @@ class NucleiSelfSegTrainer(object):
                     self.lr_scheduler.step()
 
                 # Record the log information and visualization.
-                self.logger.write(self.epoch, train_log, train_batch, pseudo_label, train_outputs,
-                                valid_log, valid_batch, valid_outputs)
+                self.logger.write(self.epoch, train_log, train_batch, train_pseudo_label, train_outputs,
+                                valid_log, valid_batch, valid_pseudo_label, valid_outputs)
 
                 # Save the regular checkpoint.
                 saved_path = self.monitor.is_saved(self.epoch)
@@ -118,29 +118,35 @@ class NucleiSelfSegTrainer(object):
         count = 0
         for batch in trange:
             batch = self._allocate_data(batch)
-            if mode == 'training':
-                inputs, targets1, targets2 = self._get_inputs_targets(batch, mode)
-                with torch.no_grad():
-                    pseudo_label = self.label_generator(inputs)
+            inputs, targets1, targets2 = self._get_inputs_targets(batch, mode)
+            with torch.no_grad():
+                pseudo_label = self.label_generator(inputs)
+            if self.label_type=='3cls_label':
                 pseudo_label = pseudo_label.argmax(dim=1, keepdim=True)
-                if self.label_type=='3cls_label':
-                    new_pseudo_label = torch.where((targets1==1) | (pseudo_label==1), torch.full_like(targets1, 1), torch.zeros_like(targets1))
-                    new_pseudo_label = torch.where((targets1==2) | (pseudo_label==2), torch.full_like(targets1, 2), new_pseudo_label)
+                new_pseudo_label = torch.where((targets1==1) | (pseudo_label==1), torch.full_like(targets1, 1), torch.zeros_like(targets1))
+                new_pseudo_label = torch.where((targets1==2) | (pseudo_label==2), torch.full_like(targets1, 2), new_pseudo_label)
+            elif self.label_type=='watershed_label':
+                targets1_disp = targets1[:, 0:2, :, :]
+                targets1_mask = targets1[:, 2, :, :][:, None, :, :]
+                pseudo_label_disp = pseudo_label[:, 0:2, :, :]
+                pseudo_label_mask = pseudo_label[:, 2:5, :, :].argmax(dim=1, keepdim=True)
+                new_pseudo_label_disp = torch.where(targets1_mask==0 , pseudo_label_disp, targets1_disp)
+                new_pseudo_label_mask = torch.where((targets1_mask==1) | (pseudo_label_mask==1), torch.full_like(targets1_mask, 1), torch.zeros_like(targets1_mask))
+                new_pseudo_label_mask = torch.where((targets1_mask==2) | (pseudo_label_mask==2), torch.full_like(targets1_mask, 2), new_pseudo_label_mask)
+                new_pseudo_label = torch.cat((new_pseudo_label_disp, new_pseudo_label_mask), dim=1)
+            if mode == 'training':
                 outputs = self.net(inputs)
-                
                 losses = self._compute_losses(outputs, new_pseudo_label)
                 loss = (torch.stack(losses) * self.loss_weights).sum()
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-                metrics =  self._compute_metrics(outputs, targets2)
             else:
-                inputs, targets1, targets2 = self._get_inputs_targets(batch, mode)
                 with torch.no_grad():
                     outputs = self.net(inputs)
-                    losses = self._compute_losses(outputs, targets1)
+                    losses = self._compute_losses(outputs, new_pseudo_label)
                     loss = (torch.stack(losses) * self.loss_weights).sum()
-                metrics =  self._compute_metrics(outputs, targets2)
+            metrics =  self._compute_metrics(outputs, targets2)
 
             batch_size = self.train_dataloader.batch_size if mode == 'training' else self.valid_dataloader.batch_size
             self._update_log(log, batch_size, loss, losses, metrics)
@@ -149,10 +155,8 @@ class NucleiSelfSegTrainer(object):
 
         for key in log:
             log[key] /= count
-        if mode == 'training':
-            return log, batch, new_pseudo_label, outputs
-        else:
-            return log, batch, outputs
+        
+        return log, batch, new_pseudo_label, outputs
 
     def _allocate_data(self, batch):
         """Allocate the data to the device.
