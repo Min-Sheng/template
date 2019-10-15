@@ -1,20 +1,31 @@
 import math
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
-from src.model.nets.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
+from src.model.nets.base_net import BaseNet
 
-class Bottleneck(nn.Module):
+model_urls = {
+    'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
+    'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth'
+}
+
+class _FixedBatchNorm(nn.BatchNorm2d):
+    def forward(self, input):
+        return F.batch_norm(input, self.running_mean, self.running_var, self.weight, self.bias,
+                            training=False, eps=self.eps)
+    
+class _Bottleneck(nn.Module):
     expansion = 4
 
-    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None, BatchNorm=None):
-        super(Bottleneck, self).__init__()
+    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None):
+        super(_Bottleneck, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
-        self.bn1 = BatchNorm(planes)
+        self.bn1 = _FixedBatchNorm(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
-                               dilation=dilation, padding=dilation, bias=False)
-        self.bn2 = BatchNorm(planes)
+                               padding=dilation, bias=False, dilation=dilation)
+        self.bn2 = _FixedBatchNorm(planes)
         self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
-        self.bn3 = BatchNorm(planes * 4)
+        self.bn3 = _FixedBatchNorm(planes * 4)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
@@ -42,73 +53,75 @@ class Bottleneck(nn.Module):
 
         return out
 
-class ResNet(nn.Module):
+class ResNet(BaseNet):
 
-    def __init__(self, block, layers, output_stride, BatchNorm, pretrained=True):
+    def __init__(self, in_channels, block, layers, output_stride=32, pretrained=True, backbone='resnet50'):
         self.inplanes = 64
+        self.in_channels = in_channels
         super(ResNet, self).__init__()
-        blocks = [1, 2, 4]
-        if output_stride == 16:
+        if output_stride == 32:
+            strides = [1, 2, 2, 2]
+            dilations = [1, 1, 1, 1]
+        elif output_stride == 16:
+            blocks = [1, 2, 4]
             strides = [1, 2, 2, 1]
             dilations = [1, 1, 1, 2]
         elif output_stride == 8:
+            blocks = [1, 2, 4]
             strides = [1, 2, 1, 1]
             dilations = [1, 1, 2, 4]
         else:
             raise NotImplementedError
 
         # Modules
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
+        self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3,
                                 bias=False)
-        self.bn1 = BatchNorm(64)
+        self.bn1 = _FixedBatchNorm(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-
-        self.layer1 = self._make_layer(block, 64, layers[0], stride=strides[0], dilation=dilations[0], BatchNorm=BatchNorm)
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=strides[1], dilation=dilations[1], BatchNorm=BatchNorm)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=strides[2], dilation=dilations[2], BatchNorm=BatchNorm)
-        self.layer4 = self._make_MG_unit(block, 512, blocks=blocks, stride=strides[3], dilation=dilations[3], BatchNorm=BatchNorm)
-        # self.layer4 = self._make_layer(block, 512, layers[3], stride=strides[3], dilation=dilations[3], BatchNorm=BatchNorm)
+        self.layer1 = self._make_layer(block, 64, layers[0], stride=strides[0], dilation=dilations[0])
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=strides[1], dilation=dilations[1])
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=strides[2], dilation=dilations[2])
+        if output_stride == 32:
+            self.layer4 = self._make_layer(block, 512, layers[3], stride=strides[3], dilation=dilations[3])
+        else:
+            self.layer4 = self._make_MG_unit(block, 512, blocks=blocks, stride=strides[3], dilation=dilations[3])
         self._init_weight()
 
-    def _make_layer(self, block, planes, blocks, stride=1, dilation=1, BatchNorm=None):
+    def _make_layer(self, block, planes, blocks, stride=1, dilation=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
                 nn.Conv2d(self.inplanes, planes * block.expansion,
                           kernel_size=1, stride=stride, bias=False),
-                BatchNorm(planes * block.expansion),
+                _FixedBatchNorm(planes * block.expansion),
             )
 
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, dilation, downsample, BatchNorm))
+        layers = [block(self.inplanes, planes, stride, dilation, downsample)]
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes, dilation=dilation, BatchNorm=BatchNorm))
+            layers.append(block(self.inplanes, planes, dilation=dilation))
 
         return nn.Sequential(*layers)
 
-    def _make_MG_unit(self, block, planes, blocks, stride=1, dilation=1, BatchNorm=None):
+    def _make_MG_unit(self, block, planes, blocks, stride=1, dilation=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
                 nn.Conv2d(self.inplanes, planes * block.expansion,
                           kernel_size=1, stride=stride, bias=False),
-                BatchNorm(planes * block.expansion),
+                _FixedBatchNorm(planes * block.expansion),
             )
 
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, dilation=blocks[0]*dilation,
-                            downsample=downsample, BatchNorm=BatchNorm))
+        layers = [block(self.inplanes, planes, stride, dilation=blocks[0]*dilation, downsample=downsample)]
         self.inplanes = planes * block.expansion
         for i in range(1, len(blocks)):
-            layers.append(block(self.inplanes, planes, stride=1,
-                                dilation=blocks[i]*dilation, BatchNorm=BatchNorm))
+            layers.append(block(self.inplanes, planes, dilation=blocks[i]*dilation))
 
         return nn.Sequential(*layers)
 
-    def forward(self, input):
-        x = self.conv1(input)
+    def forward(self, x, with_output_feature_map=False):
+        x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
@@ -118,21 +131,22 @@ class ResNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        return x, low_level_feat
+        if with_output_feature_map:
+            return x, low_level_feat
+        else:
+            return x
 
     def _init_weight(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
-            elif isinstance(m, SynchronizedBatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
-    def _load_pretrained_model(self):
-        pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
+    
+    def _load_pretrained_model(self, backbone='resnet50'):
+        pretrain_dict = model_zoo.load_url(model_urls[backbone])
         model_dict = {}
         state_dict = self.state_dict()
         for k, v in pretrain_dict.items():
@@ -141,17 +155,26 @@ class ResNet(nn.Module):
         state_dict.update(model_dict)
         self.load_state_dict(state_dict)
 
-def ResNet101(output_stride, BatchNorm, pretrained=True):
+def ResNet50(in_channels, output_stride=32, pretrained=True):
+    """Constructs a ResNet-50 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    model = ResNet(in_channels, _Bottleneck, [3, 4, 6, 3], output_stride, pretrained=pretrained, backbone='resnet50')
+    return model
+
+def ResNet101(in_channels, output_stride=32, pretrained=True):
     """Constructs a ResNet-101 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNet(Bottleneck, [3, 4, 23, 3], output_stride, BatchNorm, pretrained=pretrained)
+    model = ResNet(in_channels, _Bottleneck, [3, 4, 23, 3], output_stride, pretrained=pretrained, backbone='resnet101')
     return model
+
 
 if __name__ == "__main__":
     import torch
-    model = ResNet101(BatchNorm=nn.BatchNorm2d, pretrained=True, output_stride=8)
+    model = ResNet101(3, output_stride=8, pretrained=True)
     input = torch.rand(1, 3, 512, 512)
     output, low_level_feat = model(input)
     print(output.size())
