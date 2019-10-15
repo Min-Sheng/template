@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 from src.model.nets.base_net import BaseNet
-from src.model.nets.resnet50 import ResNet50
+from src.model.nets.backbone import build_backbone
 
 class _ConvBlock(nn.Module):
     """
@@ -86,8 +86,78 @@ class ResNet50UNet(BaseNet):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
-        #self.resnet = torchvision.models.resnet.resnet50(pretrained=True)
-        self.resnet = ResNet50(in_channels, pretrained=True)
+        self.resnet = build_backbone('resnet50', self.in_channels, output_stride=32)
+        down_blocks = []
+        up_blocks = []
+        self.input_block = nn.Sequential(*list(self.resnet.children()))[:3]
+        self.input_pool = list(self.resnet.children())[3]
+        for bottleneck in list(self.resnet.children()):
+            if isinstance(bottleneck, nn.Sequential):
+                down_blocks.append(bottleneck)
+        self.down_blocks = nn.ModuleList(down_blocks)
+        self.bridge = _Bridge(2048, 2048)
+        up_blocks.append(_UpBlock(2048, 1024))
+        up_blocks.append(_UpBlock(1024, 512))
+        up_blocks.append(_UpBlock(512, 256))
+        up_blocks.append(_UpBlock(in_channels=128 + 64, out_channels=128,
+                                                    up_conv_in_channels=256, up_conv_out_channels=128))
+        up_blocks.append(_UpBlock(in_channels=64 + 3, out_channels=64,
+                                                    up_conv_in_channels=128, up_conv_out_channels=64))
+
+        self.up_blocks = nn.ModuleList(up_blocks)
+
+        self.out = nn.Conv2d(64, out_channels, kernel_size=1, stride=1)
+        
+        self.backbone = self.down_blocks
+        self.newly_added = nn.ModuleList([self.bridge, self.up_blocks, self.out])
+        self.label_type = label_type
+        
+    def forward(self, x, with_output_feature_map=False):
+        pre_pools = dict()
+        pre_pools[f"layer_0"] = x
+        x = self.input_block(x)
+        pre_pools[f"layer_1"] = x
+        x = self.input_pool(x)
+
+        for i, block in enumerate(self.down_blocks, 2):
+            x = block(x)
+            if i == (ResNet50UNet.depth - 1):
+                continue
+            pre_pools[f"layer_{i}"] = x
+
+        x = self.bridge(x)
+
+        for i, block in enumerate(self.up_blocks, 1):
+            key = f"layer_{ResNet50UNet.depth - 1 - i}"
+            x = block(x, pre_pools[key])
+        output_feature_map = x
+        x = self.out(x)
+        del pre_pools
+        
+        if self.label_type=='instance':
+            x = torch.softmax(x, dim=1)
+        elif self.label_type=='3cls_label':
+            x = torch.softmax(x, dim=1)
+        elif self.label_type=='watershed_label':
+            x_1 = torch.tanh(x[:,0:2,:,:])
+            x_2 = torch.softmax(x[:,2:5,:,:], dim=1)
+            x = torch.cat([x_1, x_2], 1)
+        if with_output_feature_map:
+            return x, output_feature_map
+        else:
+            return x
+            
+    #def trainable_parameters(self):
+    #    return (list(self.backbone.parameters()), list(self.newly_added.parameters()))
+    
+class ResNet101UNet(BaseNet):
+    depth = 6
+
+    def __init__(self, in_channels, out_channels, label_type='3cls_label'):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.resnet = build_backbone('resnet101', self.in_channels, output_stride=32)
         down_blocks = []
         up_blocks = []
         self.input_block = nn.Sequential(*list(self.resnet.children()))[:3]

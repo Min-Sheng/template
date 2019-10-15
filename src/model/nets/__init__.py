@@ -1,4 +1,3 @@
 from .unet import UNet
-from .resnet50 import ResNet50
-from .resnet50_unet import ResNet50UNet
+from .resnet_unet import ResNet50UNet, ResNet101UNet
 from .deeplabv3plus import DeepLabV3Plus
