@@ -244,6 +244,8 @@ class NucleiSelfSegPredictor(object):
                     metrics.append(metric(prediction_final, no_overlap_label_instance))
                 elif metric.__class__.__name__ == 'F1Score':
                     metrics.append(metric(prediction_final, no_overlap_label))
+                elif metric.__class__.__name__ == 'EnsembleDice':
+                    metrics.append(metric(torch.ByteTensor(prediction_final.astype(np.int32)), torch.ByteTensor(no_overlap_label.astype(np.int32))))
                 else:
                     metrics.append(metric(prediction, full_label.unsqueeze(dim=0)))
             

@@ -178,3 +178,34 @@ class F1Score(nn.Module):
         """
         
         return f1_score((target>0).flatten(), (output>0).flatten())
+
+class EnsembleDice(nn.Module):
+    """The ensemble dice
+    """
+    def __init__(self):
+            super().__init__()
+            
+    def forward(self, output, target):
+        """
+        Args:
+            output (torch.Tensor) (N, 1, *): The model output.
+            target (torch.LongTensor) (N, 1, *): The data target.
+        Returns:
+            metric (torch.Tensor) (C): The dice scores for each class.
+        """
+        n_gt = target.max()
+        n_pred = output.max()
+        mask0 = torch.zeros_like(target)
+        mask1 = torch.ones_like(target)
+        intersection_area = 0
+        markup_area = 0
+        for i in range(n_gt):
+            for j in range(n_pred):
+                p = torch.where(target==i+1, mask1, mask0)
+                q = torch.where(output==j+1, mask1, mask0)
+                intersection = p * q
+                if intersection.sum() != 0:
+                    intersection_area += intersection.sum()
+                    markup_area += (p.sum() + q.sum())
+        dice = 2 * intersection_area.float() / markup_area.float()           
+        return dice
