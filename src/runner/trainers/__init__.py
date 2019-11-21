@@ -1,2 +1,3 @@
 from .nuclei_initial_seg_trainer import NucleiInitialSegTrainer
 from .nuclei_self_seg_trainer import NucleiSelfSegTrainer
+from .nuclei_co_seg_trainer import NucleiCoSegTrainer
