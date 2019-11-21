@@ -197,3 +197,11 @@ class CenterMaskDiceWOBGLoss(nn.Module):
         union = (output ** 2).sum(reduced_dims) + (target ** 2).sum(reduced_dims)
         score = intersection / (union + 1e-10)
         return 1 - score.mean()
+
+class DummyLoss(nn.Module):
+    
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, output, target):
+        return torch.Tensor([0])

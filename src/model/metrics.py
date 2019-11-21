@@ -195,6 +195,8 @@ class EnsembleDice(nn.Module):
         """
         n_gt = target.max()
         n_pred = output.max()
+        if n_pred == 0:
+            return torch.Tensor([0])
         mask0 = torch.zeros_like(target)
         mask1 = torch.ones_like(target)
         intersection_area = 0
