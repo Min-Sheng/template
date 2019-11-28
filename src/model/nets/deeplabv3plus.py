@@ -14,6 +14,9 @@ class DeepLabV3Plus(BaseNet):
     Args:
         in_channels (int): The input channels.
         out_channels (int): The output channels.
+        backbone_name (str): The backbone name.
+        output_stride (int): The reduction ratio of the output and original image.
+        label_type (str): The type of the label.
     """
     def __init__(self, in_channels, out_channels, backbone_name='resnet50', output_stride=16, label_type='3cls_label'):
         super().__init__()
