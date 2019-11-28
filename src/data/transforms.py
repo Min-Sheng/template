@@ -145,6 +145,7 @@ class Normalize(BaseTransform):
         _imgs = []
         for img, normalize_tag in zip(imgs, normalize_tags):
             if normalize_tag is None or normalize_tag is True:
+                img = self._minmaxscaling(img)
                 if self.means is None and self.stds is None: # Apply image-level normalization.
                     axis = tuple(range(img.ndim - 1))
                     self.means = img.mean(axis=axis)
@@ -157,7 +158,13 @@ class Normalize(BaseTransform):
             _imgs.append(img)
         imgs = tuple(_imgs)
         return imgs
-
+    
+    @staticmethod
+    def _minmaxscaling(img):
+        img = img.copy()
+        img = (img - img.min()) / (img.max()-img.min())
+        return img
+    
     @staticmethod
     def _normalize(img, means, stds):
         """Normalize the image with the means and the standard deviations.
