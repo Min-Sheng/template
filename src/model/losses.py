@@ -1,5 +1,8 @@
 import torch
 import torch.nn as nn
+from typing import List
+from functools import reduce
+from src.utils.function_utils import simplex
 
 class DiceLoss(nn.Module):
     """The Dice loss.
@@ -205,3 +208,110 @@ class DummyLoss(nn.Module):
 
     def forward(self, output, target):
         return torch.Tensor([0])
+
+class Entropy(nn.Module):
+    '''
+    the definition of Entropy is - \sum p(xi) log (p(xi))
+    '''
+
+    def __init__(self):
+        super().__init__()
+
+
+    def forward(self, p: torch.Tensor):
+        assert p.shape.__len__() >= 2
+        b, _, *s = p.shape
+        assert simplex(p)
+        e = p * (p + 1e-16).log()
+        e = -1.0 * e.sum(1)
+        assert e.shape == torch.Size([b, *s])
+        return e
+
+class Entropy_2D(nn.Module):
+    def __init__(self):
+        super().__init__()
+        '''
+        the definition of Entropy is - \sum p(xi) log (p(xi))
+        '''
+
+    def forward(self, p: torch.Tensor):
+        assert p.shape.__len__() == 4
+        b, _, h, w = p.shape
+        assert simplex(p)
+        e = p * (p + 1e-16).log()
+        e = -1.0 * e.sum(1)
+        assert e.shape == torch.Size([b, h, w])
+        return e
+
+class JSD(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+        self.entropy = Entropy()
+
+    def forward(self,p_prob: torch.Tensor, q_prob: torch.Tensor, reduce=True):
+        mean_prob = (p_prob + q_prob) / 2
+        f_term = self.entropy(mean_prob)
+        mean_entropy = (self.entropy(p_prob) + self.entropy(q_prob)) / 2
+        assert f_term.shape == mean_entropy.shape
+        if reduce:
+            return (f_term - mean_entropy).mean()
+        return f_term - mean_entropy
+
+class JSD_2D(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+        self.entropy = Entropy_2D()
+
+    def forward(self, p_prob: torch.Tensor, q_prob: torch.Tensor, reduce=False):
+        mean_prob = (p_prob + q_prob) / 2
+        f_term = self.entropy(mean_prob)
+        mean_entropy = (self.entropy(p_prob) + self.entropy(q_prob)) / 2
+        assert f_term.shape == mean_entropy.shape
+        if reduce:
+            return (f_term - mean_entropy).mean()
+        return f_term - mean_entropy
+
+class KL_div(nn.Module):
+    '''
+    KL(p,q)= -\sum p(x) * log(q(x)/p(x))
+    where p, q are distributions
+    q is usually the fixed one like one hot coding
+    q is the target and p is the distribution to get approached.
+    '''
+    def __init__(self, eps=1e-10):
+        super().__init__()
+        self.eps = eps
+
+    def forward(self, p, q, reduce=False):
+        assert p.shape == q.shape
+        assert simplex(p)
+        assert simplex(q)
+        b, _, *s = p.shape
+        kl = (- p * torch.log(q / p + self.eps)).sum(1)
+        if reduce:
+            return kl.mean()
+        return kl
+
+class KL_div_2D(nn.Module):
+
+    def __init__(self, eps=1e-10):
+        super().__init__()
+        self.eps = eps
+
+    def forward(self, p_prob: torch.Tensor, q_prob: torch.Tensor, reduce=False):
+
+        assert simplex(p_prob, 1)
+        assert simplex(q_prob, 1)
+
+        logp = (p_prob + self.eps).log()
+        logq = (q_prob + self.eps).log()
+
+        plogq = (p_prob * logq).sum(dim=1)
+        plogp = (p_prob * logp).sum(dim=1)
+        
+        if reduce:
+            return (plogp - plogq).mean()
+        else:
+            return plogp - plogq
