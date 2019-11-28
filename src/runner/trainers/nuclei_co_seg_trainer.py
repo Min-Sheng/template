@@ -1,4 +1,5 @@
 import torch
+from torch.autograd import Variable
 import logging
 import numpy as np
 from tqdm import tqdm
@@ -11,7 +12,7 @@ class NucleiCoSegTrainer(object):
     """The trainer for nuclei co segmentation task.
     """
     def __init__(self, device, train_dataloader, valid_dataloader, 
-                 segmentators, sup_loss_fn, jsd_loss_fn, optimizers,
+                 segmentators, sup_loss_fn, cot_loss_fn, optimizers,
                  logger, monitor, num_epochs, label_type,
                  seg_schedulers, cot_scheduler , adv_scheduler, adv_training_dict):
         self.device = device
@@ -21,7 +22,7 @@ class NucleiCoSegTrainer(object):
         self.S = len(self.segmentators)
         self.C = 3
         self.sup_loss_fn = sup_loss_fn.to(device)
-        self.jsd_loss_fn = jsd_loss_fn.to(device)
+        self.cot_loss_fn = cot_loss_fn.to(device)
         self.optimizers = optimizers
         self.label_type = label_type
 
@@ -97,7 +98,7 @@ class NucleiCoSegTrainer(object):
         diceMeters = [DiceMeter(report_axises='all', method='2d', C=3) for _ in
                       range(self.S)]
         suplossMeters = [AverageValueMeter() for _ in range(self.S)]
-        jsdlossMeter = AverageValueMeter()
+        cotlossMeter = AverageValueMeter()
         advlossMeter = AverageValueMeter()
         
         [segmentator.train() for segmentator in self.segmentators]
@@ -107,22 +108,38 @@ class NucleiCoSegTrainer(object):
                       desc='training')
         log = self._init_train_log()
         for batch in trange:
-            supervised_loss, jsd_loss, adv_loss = 0, 0, 0
             batch = self._allocate_data(batch)
             inputs, targets1, targets2 = self._get_inputs_targets(batch)
             outputs = list(map(lambda x: x(inputs), self.segmentators))
-            sup_loss = list(map(lambda pred: self._compute_losses(pred, targets1, 'sup'), outputs))
-            list(map(lambda x, y: x.add(y, targets2), diceMeters, outputs))
-            list(map(lambda x, y: x.add(y.detach().data.cpu()), suplossMeters, sup_loss))
-            supervised_loss = sum(sup_loss)
+            for i in range(self.S):
+                sup_loss = self.sup_loss_fn(outputs[i], targets1)
+                diceMeters[i].add(outputs[i], targets2)
+                suplossMeters[i].add(sup_loss.item())
+                cot_loss = 0
+                for j in range(self.S):
+                    if i!=j:
+                        cot_loss = self.cot_loss_fn(Variable(outputs[i]), Variable(outputs[j]), reduce=True)
+                
+                cot_loss /= self.S-1
+                cotlossMeter.add(cot_loss.item())
+                total_loss = sup_loss + self.cot_scheduler.value * cot_loss
+                self.optimizers[i].zero_grad()
+                total_loss.backward()
+                self.optimizers[i].step()
 
-            map(lambda x: x.zero_grad(), self.optimizers)
-            totalLoss = supervised_loss + 0.5 * jsd_loss + 0.5 * adv_loss
-            totalLoss.backward()
-            map(lambda x: x.step(), self.optimizers)
+            #sup_loss = list(map(lambda pred: self.sup_loss_fn(pred, targets1), outputs))
+            #list(map(lambda x, y: x.add(y, targets2), diceMeters, outputs))
+            #list(map(lambda x, y: x.add(y.item()), suplossMeters, sup_loss))
+            #supervised_loss = sum(sup_loss)
+            
+            #cotlossMeter.add(cot_loss.item())
+            #list(map(lambda x: x.zero_grad(), self.optimizers))
+            #totalLoss = supervised_loss + self.cot_scheduler.value * cot_loss + self.adv_scheduler.value * adv_loss
+            #totalLoss.backward()
+            #list(map(lambda x: x.step(), self.optimizers))
             
             batch_size = self.train_dataloader.batch_size
-            self._update_train_log(log, diceMeters, suplossMeters, jsdlossMeter, advlossMeter)
+            self._update_train_log(log, diceMeters, suplossMeters, cotlossMeter, advlossMeter)
             for i in range(self.S):
                 if i == 0:
                     avg_log = log[f'S{i}']
@@ -153,15 +170,15 @@ class NucleiCoSegTrainer(object):
                       desc='validation')
         log = self._init_eval_log()
         for batch in trange:
-            supervised_loss, jsd_loss, adv_loss = 0, 0, 0
             batch = self._allocate_data(batch)
             inputs, targets1, targets2 = self._get_inputs_targets(batch)
             with torch.no_grad():
                 outputs = list(map(lambda x: x(inputs), self.segmentators))
-                sup_loss = list(map(lambda pred: self._compute_losses(pred, targets1, 'sup'), outputs))
-                list(map(lambda x, y: x.add(y, targets2), diceMeters, outputs))
-                list(map(lambda x, y: x.add(y.detach().data.cpu()), vallossMeters, sup_loss))
-
+                for i in range(self.S):
+                    sup_loss = self.sup_loss_fn(outputs[i], targets1)
+                    diceMeters[i].add(outputs[i], targets2)
+                    vallossMeters[i].add(sup_loss.item())
+            
             batch_size = self.valid_dataloader.batch_size
             self._update_eval_log(log, diceMeters, vallossMeters)
             
@@ -204,20 +221,6 @@ class NucleiCoSegTrainer(object):
             target2 (torch.LongTensor/torch.FloatTensor): The full target.
         """
         return batch['image'], batch['semi_label'], batch['full_label']
-
-    def _compute_losses(self, output, target, mode):
-        """Compute the losses.
-        Args:
-            output (torch.Tensor): The model output.
-            target (torch.LongTensor/torch.FloatTensor): The semi target.
-        Returns:
-            losses (list of torch.Tensor): The computed losses.
-        """
-        if mode == 'sup':
-            losses = self.sup_loss_fn(output, target)
-        if mode == 'jsd':
-            losses = self.jsd_loss_fn(output, target)
-        return losses
     
     def _init_train_log(self):
         """Initialize the log.
@@ -226,25 +229,25 @@ class NucleiCoSegTrainer(object):
         """
         log = {f'S{s}':{'Loss': 0, 
                 'SupervisedLoss': 0, 
-                'JsdLoss': 0, 
+                'CotLoss': 0, 
                 'AdvLoss': 0, 
                 'Dice': 0, 
                 **{f'Dice_{c}': 0 for c in range(self.C)}} for s in range(self.S)}
         return log
     
-    def _update_train_log(self, log, dice_meters, sup_loss_meters, jsd_loss_meter, adv_loss_meter):
+    def _update_train_log(self, log, dice_meters, sup_loss_meters, cot_loss_meter, adv_loss_meter):
         """Update the log.
         Args:
             log (dict): The log to be updated.
         """
         for s in range(self.S):
-            log[f'S{s}']['Loss'] = sup_loss_meters[s].value()[0].cpu() # +
-            log[f'S{s}']['SupervisedLoss'] = sup_loss_meters[s].value()[0].cpu()
-            #log[f'S{s}']['JsdLoss'] = jsd_loss_meter.value()[0].cpu()
+            log[f'S{s}']['Loss'] = sup_loss_meters[s].value()[0] + self.cot_scheduler.value * cot_loss_meter.value()[0] #+ self.adv_scheduler.value *
+            log[f'S{s}']['SupervisedLoss'] = sup_loss_meters[s].value()[0]
+            log[f'S{s}']['CotLoss'] = cot_loss_meter.value()[0]
             #log[f'S{s}']['AdvLoss'] = adv_loss_meter.value()[0].cpu()
-            log[f'S{s}']['Dice'] = dice_meters[s].value()[0][0].cpu()
+            log[f'S{s}']['Dice'] = dice_meters[s].value()[0][0].cpu().detach().item()
             for c in range(self.C):
-                log[f'S{s}'][f'Dice_{c}'] = dice_meters[s].value()[1][0][c].cpu()
+                log[f'S{s}'][f'Dice_{c}'] = dice_meters[s].value()[1][0][c].cpu().detach().item()
     
     def _init_eval_log(self):
         """Initialize the log.
@@ -252,7 +255,6 @@ class NucleiCoSegTrainer(object):
             log (dict): The initialized log.
         """
         log = {f'S{s}':{'Loss': 0, 
-                'SupervisedLoss': 0, 
                 'Dice': 0, 
                 **{f'Dice_{c}': 0 for c in range(self.C)}} for s in range(self.S)}
         return log
@@ -263,10 +265,10 @@ class NucleiCoSegTrainer(object):
             log (dict): The log to be updated.
         """
         for s in range(self.S):
-            log[f'S{s}']['Loss'] = val_loss_meters[s].value()[0].cpu()
-            log[f'S{s}']['Dice'] = dice_meters[s].value()[0][0].cpu()
+            log[f'S{s}']['Loss'] = val_loss_meters[s].value()[0]
+            log[f'S{s}']['Dice'] = dice_meters[s].value()[0][0].cpu().detach().item()
             for c in range(self.C):
-                log[f'S{s}'][f'Dice_{c}'] = dice_meters[s].value()[1][0][c].cpu()
+                log[f'S{s}'][f'Dice_{c}'] = dice_meters[s].value()[1][0][c].cpu().detach().item()
     
     def save(self, path):
         """Save the model checkpoint.

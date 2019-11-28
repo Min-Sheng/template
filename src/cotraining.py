@@ -67,12 +67,12 @@ def main(args):
         else:
             sup_loss_fn = _get_instance(src.model.losses, config.sup_loss)
 
-        logging.info('Create the jsd loss functions.')
+        logging.info('Create the cot loss functions.')
         defaulted_loss_fns = [loss_fn for loss_fn in dir(torch.nn) if 'Loss' in loss_fn]
-        if config.jsd_loss.name in defaulted_loss_fns:
-            jsd_loss_fn = _get_instance(torch.nn, config.jsd_loss)
+        if config.cot_loss.name in defaulted_loss_fns:
+            cot_loss_fn = _get_instance(torch.nn, config.cot_loss)
         else:
-            jsd_loss_fn = _get_instance(src.model.losses, config.jsd_loss)
+            cot_loss_fn = _get_instance(src.model.losses, config.cot_loss)
 
         logging.info('Create the optimizer.')
         optimizers = [_get_instance(torch.optim, config.optimizer, segmentators[i].parameters()) for i in range(num_models)]
@@ -105,7 +105,7 @@ def main(args):
                   'valid_dataloader': valid_dataloader,
                   'segmentators': segmentators,
                   'sup_loss_fn': sup_loss_fn,
-                  'jsd_loss_fn': jsd_loss_fn,
+                  'cot_loss_fn': cot_loss_fn,
                   'optimizers': optimizers,
                   'seg_schedulers': seg_schedulers,
                   'cot_scheduler': cot_scheduler,
