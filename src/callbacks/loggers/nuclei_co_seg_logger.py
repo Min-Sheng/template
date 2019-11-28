@@ -92,50 +92,52 @@ class NucleiCoSegLogger(BaseLogger):
             valid_batch (dict): The validation batch.
             valid_output (torch.Tensor): The validation output.
         """
+        S = len(train_outputs)
+        for s in range(S):
         
-        train_output = train_outputs[0]
-        valid_output = valid_outputs[0]
-        num_classes = train_output.size(1)
+            train_output = train_outputs[s]
+            valid_output = valid_outputs[s]
+            num_classes = train_output.size(1)
 
-        if self.label_type=='watershed_label':
+            if self.label_type=='watershed_label':
+                
+                train_img = make_grid(train_batch['ori_image'], nrow=1, normalize=True, scale_each=True, pad_value=1)
+                train_watershed_semi_label, train_watershed_full_label = tuple(map(disp_to_rgb, [train_batch['semi_label'], train_batch['full_label']]))
+                train_semi_label_disp = make_grid(train_watershed_semi_label[0].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
+                train_semi_label_mask = make_grid(train_watershed_semi_label[1].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
+                train_full_label_disp = make_grid(train_watershed_full_label[0].float(), nrow=1, normalize=True, scale_each=True, pad_value=1) 
+                train_full_label_mask = make_grid(train_watershed_full_label[1].float(), nrow=1, normalize=True, scale_each=True, pad_value=1) 
+                
+                train_watershed_pred = disp_to_rgb(train_output)
+                train_pred_disp = make_grid(train_watershed_pred[0].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
+                train_pred_mask = make_grid(train_watershed_pred[1].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
+                            
+                valid_img = make_grid(valid_batch['ori_image'], nrow=1, normalize=True, scale_each=True, pad_value=1)
+                valid_watershed_semi_label, valid_watershed_full_label = tuple(map(disp_to_rgb, [valid_batch['semi_label'], valid_batch['full_label']]))
+                valid_semi_label_disp = make_grid(valid_watershed_semi_label[0].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
+                valid_semi_label_mask = make_grid(valid_watershed_semi_label[1].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
+                valid_full_label_disp = make_grid(valid_watershed_full_label[0].float(), nrow=1, normalize=True, scale_each=True, pad_value=1) 
+                valid_full_label_mask = make_grid(valid_watershed_full_label[1].float(), nrow=1, normalize=True, scale_each=True, pad_value=1) 
+
+                valid_watershed_pred = disp_to_rgb(valid_output)
+                valid_pred_disp = make_grid(valid_watershed_pred[0].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
+                valid_pred_mask = make_grid(valid_watershed_pred[1].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
+
+                train_grid = torch.cat((train_img, train_semi_label_disp, train_semi_label_mask, train_full_label_disp, train_full_label_mask, train_pred_disp, train_pred_mask), dim=-1)
+                valid_grid = torch.cat((valid_img, valid_semi_label_disp, valid_semi_label_mask, valid_full_label_disp, valid_full_label_mask, valid_pred_disp, valid_pred_mask), dim=-1)
+
+            else:
+                train_img = make_grid(train_batch['ori_image'], nrow=1, normalize=True, scale_each=True, pad_value=1)
+                train_semi_label = make_grid(train_batch['semi_label'].float(), nrow=1, normalize=True, scale_each=True, range=(0, num_classes-1), pad_value=1)
+                train_full_label = make_grid(train_batch['full_label'].float(), nrow=1, normalize=True, scale_each=True, range=(0, num_classes-1), pad_value=1)
+                train_pred = make_grid(train_output.argmax(dim=1, keepdim=True).float(), nrow=1, normalize=True, scale_each=True, range=(0, num_classes-1), pad_value=1)
+                valid_img = make_grid(valid_batch['ori_image'], nrow=1, normalize=True, scale_each=True, pad_value=1)
+                valid_semi_label = make_grid(valid_batch['semi_label'].float(), nrow=1, normalize=True, scale_each=True, range=(0, num_classes-1), pad_value=1)
+                valid_full_label = make_grid(valid_batch['full_label'].float(), nrow=1, normalize=True, scale_each=True, range=(0, num_classes-1), pad_value=1)
+                valid_pred = make_grid(valid_output.argmax(dim=1, keepdim=True).float(), nrow=1, normalize=True, scale_each=True, range=(0, num_classes-1), pad_value=1)
+
+                train_grid = torch.cat((train_img, train_semi_label, train_full_label, train_pred), dim=-1)
+                valid_grid = torch.cat((valid_img, valid_semi_label, valid_full_label, valid_pred), dim=-1)
             
-            train_img = make_grid(train_batch['ori_image'], nrow=1, normalize=True, scale_each=True, pad_value=1)
-            train_watershed_semi_label, train_watershed_full_label = tuple(map(disp_to_rgb, [train_batch['semi_label'], train_batch['full_label']]))
-            train_semi_label_disp = make_grid(train_watershed_semi_label[0].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
-            train_semi_label_mask = make_grid(train_watershed_semi_label[1].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
-            train_full_label_disp = make_grid(train_watershed_full_label[0].float(), nrow=1, normalize=True, scale_each=True, pad_value=1) 
-            train_full_label_mask = make_grid(train_watershed_full_label[1].float(), nrow=1, normalize=True, scale_each=True, pad_value=1) 
-            
-            train_watershed_pred = disp_to_rgb(train_output)
-            train_pred_disp = make_grid(train_watershed_pred[0].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
-            train_pred_mask = make_grid(train_watershed_pred[1].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
-                        
-            valid_img = make_grid(valid_batch['ori_image'], nrow=1, normalize=True, scale_each=True, pad_value=1)
-            valid_watershed_semi_label, valid_watershed_full_label = tuple(map(disp_to_rgb, [valid_batch['semi_label'], valid_batch['full_label']]))
-            valid_semi_label_disp = make_grid(valid_watershed_semi_label[0].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
-            valid_semi_label_mask = make_grid(valid_watershed_semi_label[1].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
-            valid_full_label_disp = make_grid(valid_watershed_full_label[0].float(), nrow=1, normalize=True, scale_each=True, pad_value=1) 
-            valid_full_label_mask = make_grid(valid_watershed_full_label[1].float(), nrow=1, normalize=True, scale_each=True, pad_value=1) 
-
-            valid_watershed_pred = disp_to_rgb(valid_output)
-            valid_pred_disp = make_grid(valid_watershed_pred[0].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
-            valid_pred_mask = make_grid(valid_watershed_pred[1].float(), nrow=1, normalize=True, scale_each=True, pad_value=1)
-
-            train_grid = torch.cat((train_img, train_semi_label_disp, train_semi_label_mask, train_full_label_disp, train_full_label_mask, train_pred_disp, train_pred_mask), dim=-1)
-            valid_grid = torch.cat((valid_img, valid_semi_label_disp, valid_semi_label_mask, valid_full_label_disp, valid_full_label_mask, valid_pred_disp, valid_pred_mask), dim=-1)
-
-        else:
-            train_img = make_grid(train_batch['ori_image'], nrow=1, normalize=True, scale_each=True, pad_value=1)
-            train_semi_label = make_grid(train_batch['semi_label'].float(), nrow=1, normalize=True, scale_each=True, range=(0, num_classes-1), pad_value=1)
-            train_full_label = make_grid(train_batch['full_label'].float(), nrow=1, normalize=True, scale_each=True, range=(0, num_classes-1), pad_value=1)
-            train_pred = make_grid(train_output.argmax(dim=1, keepdim=True).float(), nrow=1, normalize=True, scale_each=True, range=(0, num_classes-1), pad_value=1)
-            valid_img = make_grid(valid_batch['ori_image'], nrow=1, normalize=True, scale_each=True, pad_value=1)
-            valid_semi_label = make_grid(valid_batch['semi_label'].float(), nrow=1, normalize=True, scale_each=True, range=(0, num_classes-1), pad_value=1)
-            valid_full_label = make_grid(valid_batch['full_label'].float(), nrow=1, normalize=True, scale_each=True, range=(0, num_classes-1), pad_value=1)
-            valid_pred = make_grid(valid_output.argmax(dim=1, keepdim=True).float(), nrow=1, normalize=True, scale_each=True, range=(0, num_classes-1), pad_value=1)
-
-            train_grid = torch.cat((train_img, train_semi_label, train_full_label, train_pred), dim=-1)
-            valid_grid = torch.cat((valid_img, valid_semi_label, valid_full_label, valid_pred), dim=-1)
-        
-        self.writer.add_image('train', train_grid, epoch)
-        self.writer.add_image('valid', valid_grid, epoch)
+            self.writer.add_image(f'S{s}_train', train_grid, epoch)
+            self.writer.add_image(f'S{s}_valid', valid_grid, epoch)
