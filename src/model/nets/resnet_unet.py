@@ -82,11 +82,12 @@ class _UpBlock(nn.Module):
 class ResNet50UNet(BaseNet):
     depth = 6
 
-    def __init__(self, in_channels, out_channels, label_type='3cls_label'):
+    def __init__(self, in_channels, out_channels, label_type='3cls_label', pretrained=True):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.resnet = build_backbone('resnet50', self.in_channels, output_stride=32)
+        self.pretrained = pretrained
+        self.resnet = build_backbone('resnet50', self.in_channels, output_stride=32, pretrained=self.pretrained)
         down_blocks = []
         up_blocks = []
         self.input_block = nn.Sequential(*list(self.resnet.children()))[:3]
@@ -133,7 +134,6 @@ class ResNet50UNet(BaseNet):
         output_feature_map = x
         x = self.out(x)
         del pre_pools
-        
         if self.label_type=='instance':
             x = torch.softmax(x, dim=1)
         elif self.label_type=='3cls_label':
@@ -153,11 +153,12 @@ class ResNet50UNet(BaseNet):
 class ResNet101UNet(BaseNet):
     depth = 6
 
-    def __init__(self, in_channels, out_channels, label_type='3cls_label'):
+    def __init__(self, in_channels, out_channels, label_type='3cls_label', pretrained=True):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.resnet = build_backbone('resnet101', self.in_channels, output_stride=32)
+        self.pretrained= pretrained
+        self.resnet = build_backbone('resnet101', self.in_channels, output_stride=32, pretrained=self.pretrained)
         down_blocks = []
         up_blocks = []
         self.input_block = nn.Sequential(*list(self.resnet.children()))[:3]
@@ -192,19 +193,18 @@ class ResNet101UNet(BaseNet):
 
         for i, block in enumerate(self.down_blocks, 2):
             x = block(x)
-            if i == (ResNet50UNet.depth - 1):
+            if i == (ResNet101UNet.depth - 1):
                 continue
             pre_pools[f"layer_{i}"] = x
 
         x = self.bridge(x)
 
         for i, block in enumerate(self.up_blocks, 1):
-            key = f"layer_{ResNet50UNet.depth - 1 - i}"
+            key = f"layer_{ResNet101UNet.depth - 1 - i}"
             x = block(x, pre_pools[key])
         output_feature_map = x
         x = self.out(x)
         del pre_pools
-        
         if self.label_type=='instance':
             x = torch.softmax(x, dim=1)
         elif self.label_type=='3cls_label':
